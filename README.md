@@ -421,20 +421,10 @@ This application uses [Vercel Analytics](https://vercel.com/docs/analytics) to t
 - High contrast colors
 - Visible focus indicators
 
-## Social Links
-
-- GitHub: [github.com/pattens-tech](https://github.com/pattens-tech)
-- X (Twitter): [x.com/pattens-tech](https://x.com/pattens-tech)
 
 ## License
 
 MIT License - feel free to use this project for any purpose
-
-## Author
-
-**PATTENS**
-- GitHub: [@pattens-tech](https://github.com/pattens-tech)
-- X: [@pattens-tech](https://x.com/pattens-tech)
 
 ## Contributing
 
