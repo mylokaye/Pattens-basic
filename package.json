@@ -1,0 +1,33 @@
+{
+  "name": "csv-email-validator",
+  "version": "1.0.0",
+  "description": "A simple web application that validates email addresses from CSV files by checking MX records",
+  "main": "api/validate-csv.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "email",
+    "validator",
+    "csv",
+    "mx-records"
+  ],
+  "author": "PATTENS",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.x"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.1.1",
+    "busboy": "^1.6.0",
+    "stripe": "^17.5.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.2.0"
+  }
+}
