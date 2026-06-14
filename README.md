@@ -1,82 +1,101 @@
-# Email Validator
+# PATTENS Email Tools
 
-A static HTML/CSS/JavaScript app for validating email address syntax from CSV files.
+PATTENS Email Tools is a simple browser-based toolkit for working with email lists and email HTML.
 
-The app runs entirely in the browser. It does not use a backend, DNS MX lookups, serverless functions, or Stripe.
+It brings two tools into one page:
 
-## Features
+- Contact List Verification
+- Dynamics Email Converter
 
-- CSV upload with drag-and-drop support
-- Browser-side CSV parsing
-- Email syntax and domain-shape validation
-- Duplicate detection
-- Summary results with valid, invalid, and total counts
-- Full report view
-- CSV report download
-- 5 MB file size limit
-- 300 email upload limit
+Everything is designed to be quick, clear, and easy to use.
 
-## Validation Scope
+## Contact List Verification
 
-This static version checks whether each email address is structurally valid. It verifies rules such as:
+Use the validator to check email addresses before adding them to a campaign, contact list, CRM, or import file.
 
-- One `@` symbol
-- Valid local part length and characters
-- Valid domain characters and labels
-- No consecutive dots
-- Valid top-level domain shape
+You can:
 
-It does not check MX records or mailbox deliverability because browsers do not provide DNS MX lookup APIs.
+- Paste email addresses directly into the page
+- Upload a CSV file
+- Check emails copied from spreadsheets or contact exports
+- See how many emails were found
+- See how many emails are valid
+- See how many emails are invalid
+- See duplicate email addresses
+- View a full per-email report
+- Download the validation report as a CSV
+- Clear the tool and start again
 
-## Local Development
+The validator is useful for cleaning up lists before sending, importing, or sharing them.
 
-Run a static server from the project root:
+## Dynamics Email Converter
 
-```bash
-npm run dev
-```
+Use the converter to prepare third-party email HTML for Dynamics.
 
-Then open:
+You can:
 
-```text
-http://localhost:3000
-```
+- Paste original email HTML
+- Convert the HTML into a Dynamics-ready structure
+- Preview the original email
+- Preview the converted email
+- Copy the converted HTML
+- Refresh previews after making changes
+- See a conversion summary
+- Review warnings when the source HTML may need attention
 
-You can also use any static file server, or deploy the repository to a static host.
+The converter is useful when adapting email templates from other tools into a format that is easier to work with in Dynamics.
 
-## File Structure
+## One Page, Two Tools
 
-```text
-email-validator/
-├── index.html
-├── assets/
-├── test-emails.csv
-├── bad-test-emails.csv
-├── package.json
-└── README.md
-```
+The main page includes a simple navigation switch:
 
-## CSV Format
+- Validator
+- Converter
 
-Use one email address per line, or a normal CSV where email addresses appear in fields:
+You can move between both tools without leaving the page.
 
-```csv
-john@company.com
-jane@business.org
-invalid.email
-```
+## Privacy
 
-## Deployment
+The tools are designed to run in your browser.
 
-Deploy the project as static files. No environment variables or serverless functions are required.
+Email addresses and pasted HTML are handled locally while you use the page. The tool is intended for quick checks and conversions without requiring an account.
 
-## Limitations
+## Limits
 
-- No MX record validation
-- No mailbox existence checks
-- No payments or paid report gate
-- Validation runs in the user's browser
+The validator is designed for small and medium contact-list checks.
 
-## License
+Current limits:
 
-MIT
+- CSV uploads up to 5 MB
+- Up to 300 email entries at a time
+
+## Validation Notes
+
+The validator checks whether email addresses look correctly formatted.
+
+It can identify common issues such as:
+
+- Missing `@`
+- Invalid domain format
+- Duplicate addresses
+- Consecutive dots
+- Invalid characters
+- Overly long email addresses
+
+It does not guarantee that an email inbox exists or that a message will be delivered.
+
+## Files Included
+
+The project includes:
+
+- `index.html` for the combined main app
+- `validate.html` for the standalone validator page
+- `convert.html` for the standalone converter page
+- Sample CSV files for testing the validator
+- Visual assets used by the interface
+
+## Credits
+
+Copyright Pattens 2026.
+
+Built by Mylo Kaye.
