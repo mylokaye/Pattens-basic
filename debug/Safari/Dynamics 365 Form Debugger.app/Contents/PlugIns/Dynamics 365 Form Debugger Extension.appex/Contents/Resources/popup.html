@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Form Debugger</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: "Firesans", "Courier New", monospace;
+    background-color: #f8f9fa;
+    color: #2c3e50;
+    width: 350px;
+    height: 400px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  html {
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .header {
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #2c3e50;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 16px;
+    line-height: 1.4;
+  }
+
+  .info-section {
+    margin-bottom: 10px;
+  }
+
+  .info-card {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    height: 60px;
+    padding: 0 16px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .info-label {
+    color: #6c757d;
+    font-weight: 500;
+    font-size: 11px;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .info-value {
+    color: #2c3e50;
+    font-weight: 600;
+    font-family: "Firesans", monospace;
+    font-size: 12px;
+    word-break: break-all;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+  }
+
+  .info-value:hover {
+    opacity: 0.7;
+  }
+
+  .info-value:active {
+    opacity: 0.5;
+  }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+
+  .status-button {
+    padding: 12px 12px;
+    border-radius: 16px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: default;
+    user-select: none;
+    background-color: #B2B2B2;
+    color: #ffffff;
+  }
+
+  .status-green {
+    background-color: #5cb85c;
+    color: #ffffff;
+  }
+
+  .status-red {
+    background-color: #e57373;
+    color: #ffffff;
+  }
+
+  /* Cache toggle and form status are both display-only */
+
+  .footer {
+    margin-top: auto;
+    text-align: center;
+    padding-top: 16px;
+    padding-bottom: 20px;
+    border-top: 1px solid #dee2e6;
+  }
+
+  .footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .footer-links a {
+    color: #2c3e50;
+    text-decoration: underline;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .footer-links a:hover {
+    color: #5cb85c;
+  }
+
+  .footer-links .separator {
+    color: #6c757d;
+    font-weight: 400;
+  }
+
+  .extension-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    height: 60px;
+    padding: 0 16px;
+    background-color: #fff;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+  }
+
+  .extension-toggle-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #2c3e50;
+  }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 24px;
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+  }
+
+  input:checked + .slider {
+    background-color: #4CAF50;
+  }
+
+  input:checked + .slider:before {
+    transform: translateX(24px);
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Form Debugger</h1>
+    <p class="subtitle">When activated, the form cache will be disabled.</p>
+
+    <div class="extension-toggle">
+      <span class="extension-toggle-label">Activate extension</span>
+      <label class="switch">
+        <input type="checkbox" id="extension-enabled">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="info-section">
+    <div class="info-card">
+      <span class="info-label">Form ID</span>
+      <span class="info-value" id="form-id">---</span>
+    </div>
+    <div class="info-card">
+      <span class="info-label">Fields detected (including hidden)</span>
+      <span class="info-value" id="fields-count">0</span>
+    </div>
+  </div>
+
+  <div class="status-grid">
+    <div class="status-button" id="form-status">
+      <div>Form not detected</div>
+    </div>
+    <div class="status-button" id="cache-toggle">
+      <div>Cache enabled</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-links">
+      <a href="#" id="report-feedback">Report feedback</a>
+      <span class="separator">|</span>
+      <a href="#" id="get-support">Get support</a>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
