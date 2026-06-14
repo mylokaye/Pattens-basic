@@ -89,10 +89,10 @@ It does not guarantee that an email inbox exists or that a message will be deliv
 The project includes:
 
 - `index.html` for the combined main app
-- `validate.html` for the standalone validator page
-- `convert.html` for the standalone converter page
+- `app.js` for the converter behaviour
 - Sample CSV files for testing the validator
 - Visual assets used by the interface
+- `archive/` for older standalone pages and reference material
 
 ## Credits
 
