@@ -49,11 +49,6 @@
     <!-- CSS3 Stylesheet -->
     <link rel="stylesheet" href="styles.css">
 
-    <!-- Stripe.js -->
-    <script src="https://js.stripe.com/v3/"></script>
-
-
-
     <!-- Schema.org Structured Data (JSON-LD) -->
     <script type="application/ld+json">
     {
@@ -256,13 +251,13 @@
                                 </div>
                             </div>
                             <div class="result-actions">
-                                <button onclick="openPaymentModal()" class="btn-unlock">Unlock Full Report - £9.99</button>
+                                <button onclick="showStoredDetailedReport()" class="btn-unlock">View Full Report</button>
                                 <button onclick="resetForm()" class="btn-validate-another">Validate another file</button>
                             </div>
                         </div>
 
-                        <!-- Detailed View (after payment) -->
-                        <div id="detailedView" class="detailed-view">
+                        <!-- Detailed View -->
+                        <div id="detailedView" class="hidden detailed-view">
                             <h3 class="detailed-title">Full Report</h3>
                             <p class="detailed-subtitle"><span id="detailedTotalCount">0</span> emails analyzed</p>
                             
@@ -413,71 +408,6 @@ Any updates will appear on this page with a revised effective date.
             </div>
         </div>
 
-        <!-- Payment Modal -->
-        <div id="paymentModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
-            <div class="modal-overlay"></div>
-            <div class="modal-container">
-                <div class="modal-content payment-modal-content">
-                    <div class="modal-header">
-                        <h2 id="paymentModalTitle" class="modal-title">Unlock Full Report</h2>
-                        <button id="closePaymentModal" class="modal-close" aria-label="Close payment modal">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <p class="modal-text">Get access to the full detailed report with all email addresses and their validation status, plus CSV download.</p>
-                        
-                        <!-- Price display -->
-                        <div class="payment-price">
-                            <div class="payment-price-row">
-                                <span class="payment-price-label">Full Report Access</span>
-                                <span class="payment-price-value">£9.99</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Loading state -->
-                        <div id="paymentLoading" class="hidden payment-loading">
-                            <div class="payment-loading-spinner"></div>
-                            <p class="payment-loading-text">Preparing checkout...</p>
-                        </div>
-                        
-                        <!-- Payment form -->
-                        <form id="paymentForm" class="payment-form">
-                            <!-- Payment Element container -->
-                            <div id="paymentElement" class="payment-element-container"></div>
-                            
-                            <!-- Submit button -->
-                            <button id="submitPayment" type="submit" class="btn-payment-submit">
-                                <span id="buttonText">Pay £9.99</span>
-                                <span id="buttonSpinner" class="hidden payment-button-spinner"></span>
-                            </button>
-                        </form>
-                        
-                        <!-- Error message -->
-                        <div id="paymentError" class="hidden payment-error"></div>
-                        
-                        <!-- Success message -->
-                        <div id="paymentSuccess" class="hidden payment-success">
-                            <div class="payment-success-icon">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                </svg>
-                            </div>
-                            <h3 class="payment-success-title">Payment Successful!</h3>
-                            <p class="payment-success-text">Your full report is now available.</p>
-                            <button id="viewReportBtn" class="btn-view-report">
-                                View Full Report
-                            </button>
-                        </div>
-                        
-                        <p class="payment-footer-text">Secure payment powered by Stripe</p>
-                    </div>
-                </div>
-            </div>
-        </div>
     </main>
     
     <!-- Footer -->
@@ -614,25 +544,8 @@ Any updates will appear on this page with a revised effective date.
                 if (progress >= 100) clearInterval(progressInterval);
             }, 100);
 
-            const formData = new FormData();
-            formData.append('file', file);
-
             try {
-                const response = await fetch('/api/validate-csv', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    console.error('Non-JSON response:', text.substring(0, 200));
-                    throw new Error('Server error. Please try again.');
-                }
-
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'Validation failed');
-
+                const data = await validateCSVFile(file);
                 showSuccess(data);
             } catch (error) {
                 console.error('Error:', error);
@@ -662,7 +575,7 @@ Any updates will appear on this page with a revised effective date.
             document.getElementById('invalidCount').textContent = data.invalid || 0;
             document.getElementById('totalCount').textContent = data.total || 0;
             
-            // Store email results in sessionStorage for payment flow
+            // Store email results for full report and CSV download
             if (data.emails && data.emails.length > 0) {
                 sessionStorage.setItem('validationResults', JSON.stringify(data.emails));
             }
@@ -694,33 +607,167 @@ Any updates will appear on this page with a revised effective date.
             successState.classList.remove('flex');
             uploadState.classList.remove('hidden');
             fileInput.value = '';
-            // Clear stored validation results
+            document.getElementById('summaryView').classList.remove('hidden');
+            document.getElementById('detailedView').classList.add('hidden');
             sessionStorage.removeItem('validationResults');
         }
 
-    </script>
+        const MAX_FILE_SIZE = 5 * 1024 * 1024;
+        const MAX_EMAILS = 300;
+        const MAX_EMAIL_LENGTH = 254;
+        const MAX_LOCAL_PART_LENGTH = 64;
 
-    <!-- Payment Integration Script -->
-    <script>
-        // Initialize Stripe
-        const stripe = Stripe('pk_test_51SNjUMCmTraQU9pzceHJC3Tx61bc1dUt6pfa3HiLsJgneB78gaPXmSX2Gq00YXf2NtuQFvCGsyP36jKqlWKvlPLl00tXTmiXPO');
-        
-        const paymentModal = document.getElementById('paymentModal');
-        const closePaymentModalBtn = document.getElementById('closePaymentModal');
-        const paymentLoading = document.getElementById('paymentLoading');
-        const paymentError = document.getElementById('paymentError');
-        const paymentForm = document.getElementById('paymentForm');
-        const paymentSuccess = document.getElementById('paymentSuccess');
-        const submitPaymentBtn = document.getElementById('submitPayment');
-        const buttonText = document.getElementById('buttonText');
-        const buttonSpinner = document.getElementById('buttonSpinner');
-        const viewReportBtn = document.getElementById('viewReportBtn');
+        async function validateCSVFile(file) {
+            if (file.size > MAX_FILE_SIZE) {
+                throw new Error('File too large. Maximum size is 5MB');
+            }
 
-        let elements;
-        let paymentElement;
+            const csvContent = await file.text();
+            const rows = parseCSV(csvContent);
+            const rawEmails = extractEmails(rows);
 
-        async function openPaymentModal() {
-            // Get stored validation results
+            if (rawEmails.length === 0) {
+                throw new Error('No email values found in file');
+            }
+
+            if (rawEmails.length > MAX_EMAILS) {
+                throw new Error('File exceeds 300 email limit');
+            }
+
+            return validateEmails(rawEmails);
+        }
+
+        function parseCSV(text) {
+            const rows = [];
+            let row = [];
+            let field = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const next = text[i + 1];
+
+                if (char === '"' && inQuotes && next === '"') {
+                    field += '"';
+                    i++;
+                } else if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    row.push(field);
+                    field = '';
+                } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                    if (char === '\r' && next === '\n') i++;
+                    row.push(field);
+                    if (row.some(value => value.trim() !== '')) rows.push(row);
+                    row = [];
+                    field = '';
+                } else {
+                    field += char;
+                }
+            }
+
+            row.push(field);
+            if (row.some(value => value.trim() !== '')) rows.push(row);
+            return rows;
+        }
+
+        function extractEmails(rows) {
+            const emails = [];
+
+            rows.forEach(row => {
+                row.forEach(field => {
+                    const candidates = String(field)
+                        .split(/[\s;]+/)
+                        .map(value => sanitizeEmail(value))
+                        .filter(Boolean);
+
+                    candidates.forEach(candidate => emails.push(candidate));
+                });
+            });
+
+            return emails;
+        }
+
+        function sanitizeEmail(email) {
+            return String(email || '')
+                .replace(/[<>"';\\]/g, '')
+                .replace(/[\r\n\t]/g, '')
+                .trim();
+        }
+
+        function validateEmails(emails) {
+            const seen = new Set();
+            const emailResults = [];
+            let validCount = 0;
+            let invalidCount = 0;
+            let skipped = 0;
+
+            emails.forEach(email => {
+                const normalized = email.toLowerCase();
+
+                if (seen.has(normalized)) {
+                    skipped++;
+                    emailResults.push({
+                        email,
+                        status: 'Duplicate',
+                        valid: false
+                    });
+                    return;
+                }
+
+                seen.add(normalized);
+                const valid = isValidEmailSyntax(email);
+
+                if (valid) {
+                    validCount++;
+                } else {
+                    invalidCount++;
+                }
+
+                emailResults.push({
+                    email,
+                    status: valid ? 'Valid' : 'Invalid',
+                    valid
+                });
+            });
+
+            const total = validCount + invalidCount;
+            const percentage = total > 0 ? (validCount / total) * 100 : 0;
+
+            return {
+                total,
+                valid: validCount,
+                invalid: invalidCount,
+                percentage,
+                skipped,
+                emails: emailResults
+            };
+        }
+
+        function isValidEmailSyntax(email) {
+            if (!email || typeof email !== 'string') return false;
+            if (email.length > MAX_EMAIL_LENGTH) return false;
+            if ((email.match(/@/g) || []).length !== 1) return false;
+            if (email.includes('..')) return false;
+
+            const [localPart, domainPart] = email.split('@');
+            if (!localPart || !domainPart) return false;
+            if (localPart.length > MAX_LOCAL_PART_LENGTH) return false;
+            if (!/^[a-zA-Z0-9._+-]+$/.test(localPart)) return false;
+            if (localPart.startsWith('.') || localPart.endsWith('.')) return false;
+            if (!domainPart.includes('.')) return false;
+            if (!/^[a-zA-Z0-9.-]+$/.test(domainPart)) return false;
+            if (domainPart.startsWith('.') || domainPart.endsWith('.')) return false;
+            if (domainPart.startsWith('-') || domainPart.endsWith('-')) return false;
+
+            const labels = domainPart.split('.');
+            if (labels.some(label => !label || label.startsWith('-') || label.endsWith('-'))) return false;
+
+            const tld = labels[labels.length - 1];
+            return /^[a-zA-Z]{2,63}$/.test(tld);
+        }
+
+        function showStoredDetailedReport() {
             const resultsJson = sessionStorage.getItem('validationResults');
             if (!resultsJson) {
                 alert('No validation results found. Please validate emails first.');
@@ -735,186 +782,8 @@ Any updates will appear on this page with a revised effective date.
                 return;
             }
 
-            // Transform email data for payment API
-            // The validation API returns detailed status codes, but the payment API expects 'Valid' or 'Invalid'
-            const transformedEmails = emails.map(item => ({
-                email: item.email,
-                status: item.valid === true || item.status === 'Valid' ? 'Valid' : 'Invalid'
-            }));
-
-            // Show modal and loading state
-            paymentModal.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
-            paymentLoading.classList.remove('hidden');
-            paymentError.classList.add('hidden');
-            paymentForm.classList.add('hidden');
-            paymentSuccess.classList.add('hidden');
-
-            try {
-                // Create payment intent
-                const response = await fetch('/api/create-payment-intent', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ emails: transformedEmails }),
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to create payment intent');
-                }
-
-                const { clientSecret } = await response.json();
-
-                // Initialize Stripe Elements with custom styling
-                const appearance = {
-                    theme: 'night',
-                    variables: {
-                        colorPrimary: '#3b82f6',
-                        colorBackground: '#0f172a',
-                        colorText: '#e2e8f0',
-                        colorDanger: '#ef4444',
-                        fontFamily: 'system-ui, sans-serif',
-                        spacingUnit: '4px',
-                        borderRadius: '8px',
-                    },
-                    rules: {
-                        '.Input': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            boxShadow: 'none',
-                        },
-                        '.Input:focus': {
-                            border: '1px solid #3b82f6',
-                            boxShadow: '0 0 0 1px #3b82f6',
-                        },
-                        '.Label': {
-                            color: '#cbd5e1',
-                            fontWeight: '500',
-                        },
-                    }
-                };
-
-                elements = stripe.elements({ clientSecret, appearance });
-                paymentElement = elements.create('payment');
-                paymentElement.mount('#paymentElement');
-
-                // Hide loading and show form
-                paymentLoading.classList.add('hidden');
-                paymentForm.classList.remove('hidden');
-
-            } catch (error) {
-                console.error('Payment error:', error);
-                paymentLoading.classList.add('hidden');
-                paymentError.textContent = error.message || 'An error occurred. Please try again.';
-                paymentError.classList.remove('hidden');
-
-                // Track error with Vercel Analytics
-                if (window.va) {
-                    window.va('track', 'Payment Error', {
-                        error: error.message || 'Unknown error'
-                    });
-                }
-            }
+            showDetailedReport(emails);
         }
-
-        async function handleSubmit(e) {
-            e.preventDefault();
-
-            if (!stripe || !elements) {
-                return;
-            }
-
-            // Disable submit button
-            submitPaymentBtn.disabled = true;
-            buttonText.classList.add('hidden');
-            buttonSpinner.classList.remove('hidden');
-            paymentError.classList.add('hidden');
-
-            try {
-                const { error, paymentIntent } = await stripe.confirmPayment({
-                    elements,
-                    confirmParams: {
-                        return_url: window.location.origin + '/?payment=success',
-                    },
-                    redirect: 'if_required',
-                });
-
-                if (error) {
-                    // Payment failed
-                    paymentError.textContent = error.message;
-                    paymentError.classList.remove('hidden');
-
-                    // Track error with Vercel Analytics
-                    if (window.va) {
-                        window.va('track', 'Payment Failed', {
-                            error: error.message
-                        });
-                    }
-                } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-                    // Payment succeeded
-                    paymentForm.classList.add('hidden');
-                    paymentSuccess.classList.remove('hidden');
-
-                    // Track success with Vercel Analytics
-                    if (window.va) {
-                        window.va('track', 'Payment Success', {
-                            amount: 9.99
-                        });
-                    }
-                }
-            } catch (err) {
-                console.error('Payment error:', err);
-                paymentError.textContent = 'An unexpected error occurred. Please try again.';
-                paymentError.classList.remove('hidden');
-            } finally {
-                // Re-enable submit button
-                submitPaymentBtn.disabled = false;
-                buttonText.classList.remove('hidden');
-                buttonSpinner.classList.add('hidden');
-            }
-        }
-
-        paymentForm.addEventListener('submit', handleSubmit);
-
-        viewReportBtn.addEventListener('click', () => {
-            closePaymentModal();
-            // Trigger showing detailed results
-            showDetailedReport(JSON.parse(sessionStorage.getItem('validationResults')));
-        });
-
-        function closePaymentModal() {
-            paymentModal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-            paymentError.classList.add('hidden');
-            paymentForm.classList.add('hidden');
-            paymentSuccess.classList.add('hidden');
-            
-            // Clean up Stripe elements
-            if (paymentElement) {
-                paymentElement.unmount();
-                paymentElement = null;
-            }
-            if (elements) {
-                elements = null;
-            }
-        }
-
-        closePaymentModalBtn.addEventListener('click', closePaymentModal);
-
-        // Close modal on overlay click
-        paymentModal.querySelector('.modal-overlay').addEventListener('click', closePaymentModal);
-
-        // Prevent modal content clicks from closing modal
-        paymentModal.querySelector('.modal-content').addEventListener('click', (e) => e.stopPropagation());
-
-        // Close on Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !paymentModal.classList.contains('hidden')) {
-                closePaymentModal();
-            }
-        });
 
         // Function to show detailed report
         function showDetailedReport(emails) {
@@ -965,36 +834,11 @@ Any updates will appear on this page with a revised effective date.
 
             // Track with Vercel Analytics
             if (window.va) {
-                window.va('track', 'Full Report Unlocked', {
+                window.va('track', 'Full Report Viewed', {
                     emailCount: emails.length
                 });
             }
         }
-
-        // Check for session_id parameter on page load (payment success)
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const sessionId = urlParams.get('session_id');
-
-            if (sessionId) {
-                // Payment was successful, get stored results
-                const resultsJson = sessionStorage.getItem('validationResults');
-                
-                if (resultsJson) {
-                    try {
-                        const emails = JSON.parse(resultsJson);
-                        showDetailedReport(emails);
-                        
-                        // Clean up URL (remove session_id parameter)
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    } catch (e) {
-                        console.error('Error loading validation results:', e);
-                    }
-                } else {
-                    console.log('Payment successful but no validation results found');
-                }
-            }
-        });
 
         // Function to download CSV
         function downloadCSV() {
@@ -1118,13 +962,6 @@ Any updates will appear on this page with a revised effective date.
 
         document.querySelector('.modal-content').addEventListener('click', (e) => e.stopPropagation());
     </script>
-
-    <!-- Vercel Analytics -->
-    <script>
-        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-    </script>
-    <script defer src="/_vercel/insights/script.js"></script>
-  
 </body>
 
 </html>
