@@ -245,7 +245,7 @@
             </div>
           </div>
           <textarea id="originalHtml" class="min-h-0 flex-1 resize-none bg-black/20 p-4 font-mono text-[13px] leading-5 text-slate-100 outline-none placeholder:text-slate-500" placeholder="Paste third-party email HTML here." spellcheck="false"></textarea>
-          <iframe id="originalPreview" class="hidden h-full min-h-0 flex-1 bg-white" title="Original preview" sandbox="" referrerpolicy="no-referrer"></iframe>
+          <iframe id="originalPreview" class="hidden h-full min-h-0 flex-1 bg-white" title="Original preview" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe>
         </section>
 
         <section class="flex min-h-[620px] flex-col overflow-hidden rounded-lg border border-white/15 bg-panel shadow-soft backdrop-blur-[18px]">
@@ -264,7 +264,7 @@
             </span>
           </div>
           <textarea id="convertedHtml" class="min-h-0 flex-1 resize-none bg-black/20 p-4 font-mono text-[13px] leading-5 text-slate-100 outline-none placeholder:text-slate-500" placeholder="Converted HTML appears here." spellcheck="false"></textarea>
-          <iframe id="convertedPreview" class="hidden h-full min-h-0 flex-1 bg-white" title="Converted preview" sandbox="" referrerpolicy="no-referrer"></iframe>
+          <iframe id="convertedPreview" class="hidden h-full min-h-0 flex-1 bg-white" title="Converted preview" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe>
         </section>
 
         <aside class="flex min-h-[620px] flex-col gap-4">
@@ -739,14 +739,6 @@
           return '"' + str.replace(/"/g, '""') + '"';
         }
         return str;
-      }
-
-      function escapeHtml(value) {
-        return String(value)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;");
       }
 
       function setValidatorStatus(message) {

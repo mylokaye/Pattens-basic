@@ -4,7 +4,14 @@
   "description": "A static web application that validates email address syntax from CSV files",
   "main": "index.html",
   "scripts": {
-    "dev": "python3 -m http.server 3001"
+    "dev": "python3 -m http.server 3001",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "transform": {}
   },
   "keywords": [
     "email",
@@ -13,5 +20,10 @@
     "static"
   ],
   "author": "PATTENS",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
 }

@@ -1,18 +1,35 @@
-const sampleFiles = [
-  "mailchimp-basic.html",
-  "hubspot-newsletter.html",
-  "simple-table-email.html",
-  "stripo.html",
-  "outlook-vml-heavy.html",
-  "broken-html.html"
-];
+(function () {
+  'use strict';
 
-const textTags = new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"]);
+  // ── Constants ────────────────────────────────────────────────
+  const MAX_INPUT_SIZE = 500 * 1024; // 500KB — prevent browser freeze on large HTML
+  const DEBOUNCE_MS = 300; // ms delay before refreshing previews after typing stops
+
+  const sampleFiles = [
+    "mailchimp-basic.html",
+    "hubspot-newsletter.html",
+    "simple-table-email.html",
+    "stripo.html",
+    "outlook-vml-heavy.html",
+    "broken-html.html"
+  ];
+
+  const textTags = new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"]);
 const layoutTags = new Set(["table", "td", "th", "div", "section", "article"]);
 const unsupportedTags = new Set(["form", "script", "iframe", "video", "audio", "canvas", "object", "embed", "select", "textarea"]);
 const footerTerms = ["unsubscribe", "manage preferences", "update preferences", "subscription preferences"];
 const buttonTerms = ["read more", "view", "shop", "buy", "learn more", "details", "report", "briefing", "kit"];
 
+// ── Debounce utility ──────────────────────────────────────────
+function debounce(fn, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+// ── State ─────────────────────────────────────────────────────
 const state = {
   analysis: {},
   conversion: {},
@@ -59,16 +76,14 @@ els.convertedHtmlTab.addEventListener("click", () => setActiveConvertedView("htm
 els.convertedPreviewTab.addEventListener("click", () => setActiveConvertedView("preview"));
 els.summaryTab.addEventListener("click", () => setActiveDetails("summary"));
 els.warningsTab.addEventListener("click", () => setActiveDetails("warnings"));
-els.originalHtml.addEventListener("input", () => {
+els.originalHtml.addEventListener("input", debounce(() => {
   clearError();
   refreshPreviews();
-});
-els.convertedHtml.addEventListener("input", () => {
+}, DEBOUNCE_MS));
+els.convertedHtml.addEventListener("input", debounce(() => {
   clearError();
   refreshPreviews();
-});
-
-init();
+}, DEBOUNCE_MS));
 
 function init() {
   if (els.sampleSelect) {
@@ -96,11 +111,17 @@ async function loadSample(name) {
   setStatus(`Loading ${name}...`);
   clearError();
   try {
-    const response = await fetch(`../test-emails/${name}`);
+    const response = await fetch(`/test-emails/${name}`);
     if (!response.ok) {
-      throw new Error(`Unable to load ${name}. Serve the repository root or upload the file manually.`);
+      // Fall back to relative path for local development
+      const fallback = await fetch(`test-emails/${name}`);
+      if (!fallback.ok) {
+        throw new Error(`Unable to load ${name}. Serve the repository root or upload the file manually.`);
+      }
+      els.originalHtml.value = await fallback.text();
+    } else {
+      els.originalHtml.value = await response.text();
     }
-    els.originalHtml.value = await response.text();
     els.convertedHtml.value = "";
     resetPipelineState();
     setActiveOriginalView("html");
@@ -140,36 +161,87 @@ function runPipeline(action) {
     showError("Paste, upload, or load original HTML first.");
     return;
   }
+
+  // Enforce input size limit to prevent browser freeze
+  if (original.length > MAX_INPUT_SIZE) {
+    showError(`Input HTML too large (${(original.length / 1024).toFixed(0)} KB). Maximum is ${MAX_INPUT_SIZE / 1024} KB.`);
+    return;
+  }
+
   if (action === "validate" && !converted.trim()) {
     showError("Run conversion or paste converted HTML before validating.");
     return;
   }
 
   setStatus(`Running ${action}...`);
+  const errors = [];
+
   try {
     if (action === "analyse") {
-      state.analysis = analyseEmailHtml(original);
+      try {
+        state.analysis = analyseEmailHtml(original);
+      } catch (e) {
+        errors.push(`Analysis failed: ${e.message}`);
+        console.error("Analysis error:", e);
+      }
     }
     if (action === "convert") {
-      state.analysis = Object.keys(state.analysis).length ? state.analysis : analyseEmailHtml(original);
-      state.conversion = convertEmailHtml(original, state.analysis);
-      els.convertedHtml.value = state.conversion.convertedHtml;
+      try {
+        state.analysis = Object.keys(state.analysis).length ? state.analysis : analyseEmailHtml(original);
+      } catch (e) {
+        state.analysis = {};
+      }
+      try {
+        state.conversion = convertEmailHtml(original, state.analysis);
+        els.convertedHtml.value = state.conversion.convertedHtml;
+      } catch (e) {
+        errors.push(`Conversion failed: ${e.message}`);
+        console.error("Conversion error:", e);
+      }
     }
     if (action === "validate") {
-      state.validation = validateConvertedHtml(original, converted);
+      try {
+        state.validation = validateConvertedHtml(original, converted);
+      } catch (e) {
+        errors.push(`Validation failed: ${e.message}`);
+        console.error("Validation error:", e);
+      }
     }
     if (action === "full") {
-      state.analysis = analyseEmailHtml(original);
-      state.conversion = convertEmailHtml(original, state.analysis);
-      els.convertedHtml.value = state.conversion.convertedHtml;
-      state.validation = validateConvertedHtml(original, state.conversion.convertedHtml, state.conversion);
-      setActiveConvertedView("html");
+      try {
+        state.analysis = analyseEmailHtml(original);
+      } catch (e) {
+        errors.push(`Analysis failed: ${e.message}`);
+        console.error("Analysis error:", e);
+        state.analysis = {};
+      }
+      try {
+        state.conversion = convertEmailHtml(original, state.analysis);
+        els.convertedHtml.value = state.conversion.convertedHtml;
+      } catch (e) {
+        errors.push(`Conversion failed: ${e.message}`);
+        console.error("Conversion error:", e);
+        state.conversion = { convertedHtml: original, warnings: [], summary: { converted: false, skipped: 1 } };
+      }
+      try {
+        state.validation = validateConvertedHtml(original, state.conversion.convertedHtml, state.conversion);
+      } catch (e) {
+        errors.push(`Validation failed: ${e.message}`);
+        console.error("Validation error:", e);
+      }
+      if (action === "full") {
+        setActiveConvertedView("html");
+      }
+    }
+    if (errors.length) {
+      showError(errors.join(" "));
     }
     syncWarnings();
     renderSummary();
     renderWarnings();
     refreshPreviews();
   } catch (error) {
+    console.error("Pipeline error:", error);
     showError(error.message || "Pipeline failed.");
   } finally {
     setStatus("");
@@ -499,7 +571,14 @@ function detectProtectedRegions(nodes) {
 }
 
 function parseHtml(html) {
-  return new DOMParser().parseFromString(html || "", "text/html");
+  const doc = new DOMParser().parseFromString(html || "", "text/html");
+  // Check for parser error document (malformed HTML produces a <parsererror> element)
+  const parserError = doc.querySelector("parsererror");
+  if (parserError) {
+    const message = parserError.textContent || "Unknown parse error";
+    throw new Error(`HTML parse error: ${message.trim().split("\n")[0]}`);
+  }
+  return doc;
 }
 
 function serializeDoc(doc) {
@@ -533,10 +612,14 @@ function collectNodes(doc) {
     [...element.children].forEach((child) => walk(child, path));
   }
 
-  if (doc.documentElement) {
-    walk(doc.documentElement, "");
+  try {
+    if (doc.documentElement) {
+      walk(doc.documentElement, "");
+    }
+  } finally {
+    // Always clean up temporary attributes, even if walk() threw
+    result.forEach((node) => node.element.removeAttribute("data-static-node-id"));
   }
-  result.forEach((node) => node.element.removeAttribute("data-static-node-id"));
   return result;
 }
 
@@ -988,3 +1071,30 @@ function escapeHtml(value) {
     "'": "&#039;"
   }[char]));
 }
+
+// ── Public API ─────────────────────────────────────────────────
+window.Pattens = window.Pattens || {};
+window.Pattens.converter = {
+  runPipeline,
+  copyConvertedHtml,
+  refreshPreviews,
+  resetPipelineState,
+  // Exposed for testing
+  _analyseEmailHtml: analyseEmailHtml,
+  _convertEmailHtml: convertEmailHtml,
+  _validateConvertedHtml: validateConvertedHtml,
+  _parseHtml: parseHtml,
+  _escapeHtml: escapeHtml,
+  _dedupeWarnings: dedupeWarnings,
+  _conversionMarkerSummary: conversionMarkerSummary,
+  _issue: issue,
+};
+
+// ── Init ───────────────────────────────────────────────────────
+try {
+  init();
+} catch (e) {
+  console.error("Converter init error:", e);
+}
+
+})();

@@ -68,6 +68,7 @@ Current limits:
 
 - CSV uploads up to 5 MB
 - Up to 300 email entries at a time
+- Converter input up to 500 KB of HTML
 
 ## Validation Notes
 
@@ -84,15 +85,59 @@ It can identify common issues such as:
 
 It does not guarantee that an email inbox exists or that a message will be delivered.
 
+## Development
+
+### Running locally
+
+Start a local development server:
+
+```
+npm run dev
+```
+
+Then open `http://localhost:3001` in your browser.
+
+### Running tests
+
+The project uses Jest with jsdom for automated testing:
+
+```
+npm test           # run all tests once
+npm run test:watch # run tests in watch mode
+npm run test:coverage # run tests with coverage report
+```
+
+Two test suites are included:
+
+- **`__tests__/app.test.js`** — Converter: HTML parsing, block analysis, Dynamics conversion, output validation, and utility functions.
+- **`__tests__/validator.test.js`** — Validator: email syntax checking, CSV parsing, duplicate detection, sanitization, and summary calculations.
+
+### Reliability features
+
+The codebase includes several stability safeguards:
+
+- **Debounced previews** — Textarea input is debounced (300ms) so typing large HTML doesn't freeze the browser.
+- **DOMParser error detection** — Malformed HTML that produces a parser error document is caught and reported instead of silently producing broken output.
+- **Exception-safe DOM walks** — Temporary attributes are always cleaned up even if the element walker throws mid-traversal.
+- **Pipeline error boundaries** — Each conversion stage (analysis, conversion, validation) fails independently so earlier results are preserved.
+- **Input size limits** — The converter rejects HTML over 500KB to prevent browser freeze from extremely large input.
+- **Deduplicated utilities** — `escapeHtml` is defined once in `app.js` and shared across both tools.
+- **Namespaced API** — Converter functions live under `window.Pattens.converter` to avoid global namespace collisions.
+- **Resilient sample loading** — Sample HTML files load with a root-relative path with a local fallback.
+- **Safe iframe sandboxes** — Preview iframes use `sandbox="allow-same-origin"` for consistent rendering while maintaining security.
+
 ## Files Included
 
 The project includes:
 
 - `index.html` for the combined main app
-- `app.js` for the converter behaviour
+- `app.js` for the converter behaviour (namespaced under `window.Pattens.converter`)
+- `styles.css` for the visual theme
 - Sample CSV files for testing the validator
+- `__tests__/` for automated Jest test suites
+- `docs/` for conversion rules and Dynamics template attribute reference
+- `skills/` for the dynamics-email-converter agent skill definition
 - Visual assets used by the interface
-- `archive/` for older standalone pages and reference material
 
 ## Credits
 
