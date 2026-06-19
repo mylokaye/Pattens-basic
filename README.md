@@ -55,7 +55,7 @@ Adapt third‑party email HTML into Dynamics 365 Customer Insights – Journeys 
 
 You can:
 
-- Paste original email HTML or load a sample
+- Paste original email HTML
 - Convert text, images, and buttons into Dynamics‑ready blocks
 - Preview the original and converted email side‑by‑side
 - Copy the converted HTML

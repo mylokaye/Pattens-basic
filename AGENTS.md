@@ -133,8 +133,7 @@ These reinforce `.github/copilot-instructions.md`. Critical rules:
 
 ### 3.2 HTML
 - **Minimal inline `<script>` blocks** — pure logic lives in `src/` files
-- **Tailwind only** for styling — custom CSS only for animations (`@keyframes`)
-- **Do not duplicate Tailwind classes inside `styles.css`** — the file exists for keyframe animations only
+- **Tailwind only** for styling — custom CSS only for animations (`@keyframes`), defined inline in `index.html`
 - **`addEventListener`, never `onclick`**
 
 ### 3.3 File Placement
