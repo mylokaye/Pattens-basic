@@ -164,7 +164,7 @@
         </div>
       </header>
 
-      <section id="validatorTool" data-tool-panel="validator" class="hidden items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section id="validatorTool" data-tool-panel="validator" class="hidden items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <section class="flex min-h-[620px] flex-col overflow-hidden rounded-lg border border-white/15 bg-panel shadow-soft backdrop-blur-[18px]">
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-3 py-2">
             <h2 class="px-2 text-sm font-extrabold text-white">Emails</h2>
@@ -211,27 +211,16 @@
 
           <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/15 bg-panel shadow-soft backdrop-blur-[18px]">
             <div class="flex items-center justify-between gap-3 border-b border-line px-3 py-2">
-              <div class="flex items-center gap-1">
-                <button id="validatorSummaryTab" type="button" onclick="emailTools.setActiveValidatorDetails('summary')" class="rounded-md px-3 py-2 text-sm font-bold transition">
-                  Summary
-                </button>
-                <button id="validatorReportTab" type="button" onclick="emailTools.setActiveValidatorDetails('report')" class="rounded-md px-3 py-2 text-sm font-bold transition">
-                  Report
-                </button>
-              </div>
-              <span id="validatorValidRateBadge" class="rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold text-muted shadow-sm">0%</span>
+              <h2 class="px-2 text-sm font-extrabold text-white">Summary</h2>
             </div>
             <div id="validatorSummaryPanel" class="min-h-0 flex-1 overflow-auto p-4">
-              <dl id="validatorSummaryRows" class="grid gap-2"></dl>
-            </div>
-            <div id="validatorReportPanel" class="hidden min-h-0 flex-1 overflow-auto p-3">
-              <p class="px-1 py-2 text-sm text-muted">No validation results yet.</p>
+              <dl id="validatorSummaryRows" class="grid grid-cols-2 gap-2"></dl>
             </div>
           </section>
         </aside>
       </section>
 
-      <section id="converterTool" data-tool-panel="converter" class="hidden grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_360px]">
+      <section id="converterTool" data-tool-panel="converter" class="hidden grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_360px]">
         <section class="flex min-h-[620px] flex-col overflow-hidden rounded-lg border border-white/15 bg-panel shadow-soft backdrop-blur-[18px]">
           <div class="flex items-center justify-between gap-3 border-b border-line px-3 py-2">
             <h2 class="px-2 text-sm font-extrabold text-white">Original</h2>
@@ -308,7 +297,7 @@
         </aside>
       </section>
 
-      <section id="generateTool" data-tool-panel="generate" class="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_360px]">
+      <section id="generateTool" data-tool-panel="generate" class="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_360px]">
         <section class="flex min-h-[620px] flex-col overflow-hidden rounded-lg border border-white/15 bg-panel shadow-soft backdrop-blur-[18px]">
           <div class="flex flex-wrap items-center justify-start gap-3 border-b border-line px-3 py-2">
             <div class="flex items-center gap-1" aria-label="Generator type">
@@ -355,7 +344,7 @@
           <form id="linkGeneratorForm" class="flex flex-1 flex-col p-5" novalidate>
             <div class="grid gap-5 sm:grid-cols-2">
               <label class="grid gap-2 text-sm font-bold text-slate-200 sm:col-span-2">
-                Base URL
+                URL
                 <select id="linkBaseUrl" class="h-11 w-full rounded-lg border border-white/15 bg-[#111827] px-3 text-sm font-semibold text-white outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"></select>
               </label>
               <label class="grid gap-2 text-sm font-bold text-slate-200 sm:col-span-2">
@@ -423,7 +412,7 @@
           </form>
         </section>
 
-        <div class="flex min-h-[360px] flex-col gap-4 xl:min-h-[620px]">
+        <div class="flex min-h-[360px] flex-col gap-4 lg:min-h-[620px]">
           <section class="shrink-0 overflow-hidden rounded-lg border border-white/15 bg-panel shadow-soft backdrop-blur-[18px]">
             <div class="border-b border-line px-5 py-3">
               <h2 class="text-sm font-extrabold text-white">Preview</h2>
@@ -597,12 +586,8 @@
         downloadButton: document.getElementById("validatorDownloadButton"),
         clearButton: document.getElementById("validatorClearButton"),
         statusText: document.getElementById("validatorStatusText"),
-        summaryTab: document.getElementById("validatorSummaryTab"),
-        reportTab: document.getElementById("validatorReportTab"),
         summaryPanel: document.getElementById("validatorSummaryPanel"),
-        reportPanel: document.getElementById("validatorReportPanel"),
         summaryRows: document.getElementById("validatorSummaryRows"),
-        validRateBadge: document.getElementById("validatorValidRateBadge"),
         errorBox: document.getElementById("validatorErrorBox")
       };
 
@@ -616,15 +601,12 @@
       validatorEls.fileInput.addEventListener("change", loadValidatorUploadedFile);
       validatorEls.downloadButton.addEventListener("click", downloadValidatorCSV);
       validatorEls.clearButton.addEventListener("click", clearValidator);
-      validatorEls.summaryTab.addEventListener("click", () => setActiveValidatorDetails("summary"));
-      validatorEls.reportTab.addEventListener("click", () => setActiveValidatorDetails("report"));
 
       initValidator();
       setActiveTool("generate");
 
       function initValidator() {
         renderValidatorSummary();
-        setActiveValidatorDetails("summary");
         updateValidatorInputCount();
       }
 
@@ -686,8 +668,6 @@
           validatorState.results = result.emails;
           validatorState.summary = result.summary;
           renderValidatorSummary();
-          renderValidatorReport();
-          setActiveValidatorDetails("summary");
           validatorEls.downloadButton.disabled = validatorState.results.length === 0;
         } catch (error) {
           showValidatorError(error.message || "Unable to validate these email addresses.");
@@ -712,85 +692,32 @@
         setValidatorStatus("");
         updateValidatorInputCount();
         renderValidatorSummary();
-        renderValidatorReport();
-        setActiveValidatorDetails("summary");
       }
 
       // Validator logic is loaded from src/validator/validator.js (Pattens.validator)
       // — see V = Pattens.validator alias above.
 
       function renderValidatorSummary() {
+        const hasRun = validatorState.results.length > 0;
+        const healthPct = `${validatorState.summary.validRate || 0}%`;
         const rows = [
-          ["Emails found", validatorState.summary.total || 0],
-          ["Checked", validatorState.summary.checked || 0],
-          ["Valid", validatorState.summary.valid || 0, "text-emerald-300"],
-          ["Invalid", validatorState.summary.invalid || 0, "text-red-300"],
-          ["Duplicates", validatorState.summary.duplicate || 0, "text-amber-200"]
+          ["Valid", String(validatorState.summary.valid || 0), "text-emerald-300", "border-emerald-300/40 bg-emerald-400/10", false],
+          ["Health", healthPct, "text-accent", "border-accent/40 bg-accent/10", false],
+          ["Duplicates", String(validatorState.summary.duplicate || 0), "text-amber-200", "border-amber-300/40 bg-amber-400/10", false],
+          ["Invalid", String(validatorState.summary.invalid || 0), "text-red-300", "border-red-300/40 bg-red-400/10", false]
         ];
 
-        validatorEls.validRateBadge.textContent = `${validatorState.summary.validRate || 0}%`;
-        validatorEls.summaryRows.innerHTML = rows.map(([label, value, valueClass = "text-white"]) => `
-          <div class="flex items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-3">
-            <dt class="text-sm font-semibold text-muted">${label}</dt>
-            <dd class="text-sm font-extrabold ${valueClass}">${value}</dd>
+        validatorEls.summaryRows.innerHTML = rows.map(([label, value, valueClass, activeClass, fullRow]) => `
+          <div class="flex items-center justify-between gap-4 rounded-lg border px-3 py-3 ${hasRun ? activeClass : "border-white/10 bg-white/[0.04]"} ${fullRow ? "col-span-2" : ""}">
+            <dt class="text-sm font-semibold ${hasRun ? "text-white" : "text-muted"}">${label}</dt>
+            <dd class="text-sm font-extrabold ${hasRun ? valueClass : "text-white"}">${value}</dd>
           </div>
         `).join("");
-      }
-
-      function renderValidatorReport() {
-        if (!validatorState.results.length) {
-          validatorEls.reportPanel.innerHTML = '<p class="px-1 py-2 text-sm text-muted">No validation results yet.</p>';
-          return;
-        }
-
-        validatorEls.reportPanel.innerHTML = `
-          <div class="grid gap-2">
-            ${validatorState.results.map(item => {
-              const badgeClass = item.status === "Valid"
-                ? "border-emerald-300/40 bg-emerald-400/15 text-emerald-200"
-                : item.status === "Duplicate"
-                  ? "border-amber-300/40 bg-amber-400/15 text-amber-100"
-                  : "border-red-300/40 bg-red-400/15 text-red-100";
-
-              return `
-                <div class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
-                  <span class="min-w-0 truncate font-mono text-[12px] leading-5 text-slate-100" title="${escapeValidatorHtml(item.email)}">${escapeValidatorHtml(item.email)}</span>
-                  <span class="shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-extrabold ${badgeClass}">${item.status}</span>
-                </div>
-              `;
-            }).join("")}
-          </div>
-        `;
-      }
-
-      function escapeValidatorHtml(value) {
-        return String(value || "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#039;");
       }
 
       function updateValidatorInputCount() {
         const count = V.extractEmailsFromText(validatorEls.emailInput.value).length;
         validatorEls.inputCount.textContent = `${count} found`;
-      }
-
-      function setActiveValidatorDetails(active) {
-        const isSummary = active === "summary";
-        validatorEls.summaryPanel.classList.toggle("hidden", !isSummary);
-        validatorEls.reportPanel.classList.toggle("hidden", isSummary);
-        setValidatorTabState(validatorEls.summaryTab, isSummary);
-        setValidatorTabState(validatorEls.reportTab, !isSummary);
-      }
-
-      function setValidatorTabState(tab, active) {
-        tab.classList.toggle("bg-accentSoft", active);
-        tab.classList.toggle("text-accent", active);
-        tab.classList.toggle("text-muted", !active);
-        tab.classList.toggle("hover:bg-white/10", !active);
-        tab.classList.toggle("hover:text-white", !active);
       }
 
       function downloadValidatorCSV() {
@@ -854,8 +781,7 @@
         validateCurrentInput,
         openValidatorUpload: () => validatorEls.fileInput.click(),
         downloadValidatorCSV,
-        clearValidator,
-        setActiveValidatorDetails
+        clearValidator
       };
     </script>
     <script src="./app.js?v=20260614-combined"></script>

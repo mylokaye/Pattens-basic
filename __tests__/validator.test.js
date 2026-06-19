@@ -228,12 +228,6 @@ describe('validator page integration', () => {
     expect(sampleFunction).not.toContain('validateCurrentInput();');
   });
 
-  test('uses a local HTML escaping helper when rendering the report', () => {
-    expect(indexHtml).toContain('function escapeValidatorHtml(value)');
-    expect(indexHtml).toContain('escapeValidatorHtml(item.email)');
-    expect(indexHtml).not.toContain('title="${escapeHtml(item.email)}"');
-  });
-
   test('always clears the validating status', () => {
     expect(indexHtml).toMatch(/finally\s*{\s*setValidatorStatus\(""\);\s*}/);
   });
