@@ -123,6 +123,54 @@ describe('Generate tool', () => {
     expect(document.querySelector('[data-saved-result]').getAttribute('title')).toBe(generator.state.items[0].value);
   });
 
+  test('enables Generate and Copy only when every link field is complete', () => {
+    setupGenerator();
+    const button = document.getElementById('generateItemButton');
+    const copyButton = document.getElementById('copyGeneratorPreviewButton');
+    const form = document.getElementById('linkGeneratorForm');
+
+    expect(button.disabled).toBe(true);
+    expect(copyButton.disabled).toBe(true);
+
+    ['linkCampaign', 'linkContent', 'linkTerm', 'linkCrmCampaign'].forEach(id => {
+      document.getElementById(id).value = 'complete';
+    });
+    form.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(button.disabled).toBe(false);
+    expect(copyButton.disabled).toBe(false);
+
+    document.getElementById('linkSubUrl').value = '';
+    form.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(button.disabled).toBe(true);
+    expect(copyButton.disabled).toBe(true);
+    expect(document.getElementById('linkFormError').textContent).toBe('');
+  });
+
+  test('updates Generate and Copy availability for Campaign and Survey', () => {
+    const generator = setupGenerator();
+    const generateButton = document.getElementById('generateItemButton');
+    const copyButton = document.getElementById('copyGeneratorPreviewButton');
+
+    generator.setActiveType('Campaign');
+    expect(generateButton.disabled).toBe(true);
+    expect(copyButton.disabled).toBe(true);
+
+    document.getElementById('campaignDescriptor').value = 'Upgrade';
+    document.getElementById('campaignSalesplay').value = 'SP1';
+    document.getElementById('campaignGeneratorForm').dispatchEvent(new Event('input', { bubbles: true }));
+    expect(generateButton.disabled).toBe(false);
+    expect(copyButton.disabled).toBe(false);
+
+    generator.setActiveType('Survey');
+    expect(generateButton.disabled).toBe(false);
+    expect(copyButton.disabled).toBe(false);
+
+    document.getElementById('surveyJourney').value = '';
+    document.getElementById('surveyGeneratorForm').dispatchEvent(new Event('input', { bubbles: true }));
+    expect(generateButton.disabled).toBe(true);
+    expect(copyButton.disabled).toBe(true);
+  });
+
   test('builds the encoded survey URL with normalized context values', () => {
     const generator = setupGenerator();
     expect(generator.buildSurveyUrl({
@@ -196,11 +244,11 @@ describe('Generate tool', () => {
     expect(document.getElementById('generatedItemsList').textContent).toContain('https://emea.dcv.ms/GVMHka0Ltj');
   });
 
-  test('requires descriptor and sales play before saving', () => {
+  test('does not save or show an error when required campaign fields are missing', () => {
     const generator = setupGenerator();
     document.getElementById('campaignGeneratorForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
     expect(generator.state.items).toHaveLength(0);
-    expect(document.getElementById('campaignFormError').textContent).toContain('descriptor and sales play');
+    expect(document.getElementById('campaignFormError').textContent).toBe('');
   });
 });

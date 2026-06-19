@@ -248,7 +248,33 @@
     const value = buildCampaignCode(currentCampaignValues());
     els.campaignPreview.textContent = value || "Campaign preview";
     clearError("Campaign");
+    updateActionButtonStates();
     return value;
+  }
+
+  function isLinkComplete(values = currentLinkValues()) {
+    return Object.values(values).every(value => String(value).trim());
+  }
+
+  function isCampaignComplete(values = currentCampaignValues()) {
+    return [values.business, values.year, values.descriptor, values.salesplay]
+      .every(value => String(value).trim());
+  }
+
+  function isSurveyComplete(values = currentSurveyValues()) {
+    return Object.values(values).every(value => String(value).trim()) && Boolean(buildSurveyUrl(values));
+  }
+
+  function isActiveFormComplete() {
+    if (state.activeType === "Link") return isLinkComplete();
+    if (state.activeType === "Survey") return isSurveyComplete();
+    return isCampaignComplete();
+  }
+
+  function updateActionButtonStates() {
+    const disabled = !isActiveFormComplete();
+    if (els.generate) els.generate.disabled = disabled;
+    if (els.copyPreview) els.copyPreview.disabled = disabled;
   }
 
   function updateLinkPreview() {
@@ -256,6 +282,7 @@
     const value = buildLinkUrl(currentLinkValues());
     els.linkPreview.textContent = value || "Link preview";
     clearError("Link");
+    updateActionButtonStates();
     return value;
   }
 
@@ -264,6 +291,7 @@
     const value = buildSurveyUrl(currentSurveyValues());
     els.surveyPreview.textContent = value || "Survey preview";
     clearError("Survey");
+    updateActionButtonStates();
     return value;
   }
 
@@ -295,33 +323,22 @@
   function generateCampaign(event) {
     event?.preventDefault();
     const values = currentCampaignValues();
-    if (!normalizeSegment(values.descriptor) || !normalizeSegment(values.salesplay)) {
-      showError("Enter both a descriptor and sales play.", "Campaign");
-      return null;
-    }
+    if (!isCampaignComplete(values)) return null;
     return addItem("Campaign", buildCampaignCode(values), values);
   }
 
   function generateLink(event) {
     event?.preventDefault();
     const values = currentLinkValues();
-    const required = [values.source, values.medium, values.campaign, values.content, values.term, values.crmCampaign];
-    if (!values.baseUrl || required.some(value => !uppercaseTrackingValue(value))) {
-      showError("Complete all link tracking fields.", "Link");
-      return null;
-    }
+    if (!isLinkComplete(values)) return null;
     return addItem("Link", buildLinkUrl(values), values);
   }
 
   function generateSurvey(event) {
     event?.preventDefault();
     const values = currentSurveyValues();
-    const required = [values.baseUrl, values.lang, values.journey, values.lob, values.campaign, values.content, values.medium];
     const value = buildSurveyUrl(values);
-    if (required.some(field => !String(field).trim()) || !value) {
-      showError("Complete all survey fields with a valid base URL.", "Survey");
-      return null;
-    }
+    if (!isSurveyComplete(values) || !value) return null;
     return addItem("Survey", value, values);
   }
 
@@ -365,6 +382,7 @@
     }
     clearError();
     updateActivePreview();
+    updateActionButtonStates();
   }
 
   async function copyText(value, message) {
@@ -401,10 +419,10 @@
       return;
     }
 
-    els.list.innerHTML = `<div class="grid gap-2">${state.items.map(item => `
-      <article class="rounded-lg border border-white/10 bg-white/[0.04] p-3">
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
+    els.list.innerHTML = `<div class="grid min-w-0 max-w-full gap-2">${state.items.map(item => `
+      <article class="min-w-0 max-w-full overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] p-3">
+        <div class="flex min-w-0 max-w-full items-start justify-between gap-3">
+          <div class="min-w-0 flex-1 overflow-hidden">
             <p class="text-xs font-extrabold uppercase tracking-wide text-accent">${escapeHtml(item.type)}</p>
             <p data-saved-result class="mt-1 truncate font-mono text-sm font-bold leading-6 text-white" title="${escapeHtml(item.value)}">${escapeHtml(item.value)}</p>
           </div>
