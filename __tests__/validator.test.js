@@ -15,6 +15,7 @@ const validatorCode = fs.readFileSync(
   path.join(__dirname, '..', 'src', 'validator', 'validator.js'),
   'utf-8'
 );
+const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf-8');
 (0, eval)(validatorCode);
 
 // Convenience aliases from the Pattens namespace
@@ -214,5 +215,26 @@ describe('parseCSV', () => {
   test('handles empty input', () => {
     const result = parseCSV('');
     expect(result).toEqual([]);
+  });
+});
+
+describe('validator page integration', () => {
+  test('loads sample emails without automatically validating them', () => {
+    const sampleStart = indexHtml.indexOf('function loadValidatorSample()');
+    const sampleEnd = indexHtml.indexOf('async function loadValidatorUploadedFile', sampleStart);
+    const sampleFunction = indexHtml.slice(sampleStart, sampleEnd);
+
+    expect(sampleFunction).toContain('updateValidatorInputCount();');
+    expect(sampleFunction).not.toContain('validateCurrentInput();');
+  });
+
+  test('uses a local HTML escaping helper when rendering the report', () => {
+    expect(indexHtml).toContain('function escapeValidatorHtml(value)');
+    expect(indexHtml).toContain('escapeValidatorHtml(item.email)');
+    expect(indexHtml).not.toContain('title="${escapeHtml(item.email)}"');
+  });
+
+  test('always clears the validating status', () => {
+    expect(indexHtml).toMatch(/finally\s*{\s*setValidatorStatus\(""\);\s*}/);
   });
 });

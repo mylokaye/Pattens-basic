@@ -23,7 +23,7 @@
     "static"
   ],
   "author": "PATTENS",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "jest": "^29.7.0",

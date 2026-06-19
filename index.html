@@ -606,7 +606,6 @@
           "name.surname+pattens@sub.example.org"
         ].join("\n");
         updateValidatorInputCount();
-        validateCurrentInput();
       }
 
       async function loadValidatorUploadedFile(event) {
@@ -650,14 +649,19 @@
         }
 
         setValidatorStatus("Validating emails...");
-        const result = V.validateEmails(rawEmails);
-        validatorState.results = result.emails;
-        validatorState.summary = result.summary;
-        renderValidatorSummary();
-        renderValidatorReport();
-        setActiveValidatorDetails("summary");
-        validatorEls.downloadButton.disabled = validatorState.results.length === 0;
-        setValidatorStatus("");
+        try {
+          const result = V.validateEmails(rawEmails);
+          validatorState.results = result.emails;
+          validatorState.summary = result.summary;
+          renderValidatorSummary();
+          renderValidatorReport();
+          setActiveValidatorDetails("summary");
+          validatorEls.downloadButton.disabled = validatorState.results.length === 0;
+        } catch (error) {
+          showValidatorError(error.message || "Unable to validate these email addresses.");
+        } finally {
+          setValidatorStatus("");
+        }
       }
 
       function clearValidator() {
@@ -718,13 +722,22 @@
 
               return `
                 <div class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
-                  <span class="min-w-0 truncate font-mono text-[12px] leading-5 text-slate-100" title="${escapeHtml(item.email)}">${escapeHtml(item.email)}</span>
+                  <span class="min-w-0 truncate font-mono text-[12px] leading-5 text-slate-100" title="${escapeValidatorHtml(item.email)}">${escapeValidatorHtml(item.email)}</span>
                   <span class="shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-extrabold ${badgeClass}">${item.status}</span>
                 </div>
               `;
             }).join("")}
           </div>
         `;
+      }
+
+      function escapeValidatorHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
       }
 
       function updateValidatorInputCount() {
