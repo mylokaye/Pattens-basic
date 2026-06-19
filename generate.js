@@ -91,7 +91,9 @@
     campaignError: document.getElementById("campaignFormError"),
     list: document.getElementById("generatedItemsList"),
     count: document.getElementById("generatedItemCount"),
+    actions: document.getElementById("generatorActions"),
     generate: document.getElementById("generateItemButton"),
+    validatePreview: document.getElementById("validateGeneratorPreviewButton"),
     copyPreview: document.getElementById("copyGeneratorPreviewButton"),
     clear: document.getElementById("clearGeneratedItemsButton"),
     status: document.getElementById("generatorStatusText"),
@@ -274,6 +276,7 @@
   function updateActionButtonStates() {
     const disabled = !isActiveFormComplete();
     if (els.generate) els.generate.disabled = disabled;
+    if (els.validatePreview) els.validatePreview.disabled = disabled || state.activeType === "Campaign";
     if (els.copyPreview) els.copyPreview.disabled = disabled;
   }
 
@@ -316,7 +319,6 @@
       return null;
     }
     renderItems();
-    setStatus(`${type} saved in this browser.`);
     return item;
   }
 
@@ -360,6 +362,8 @@
     els.surveyPreview?.classList.toggle("hidden", !isSurvey);
     els.linkPreview?.classList.toggle("hidden", !isLink);
     els.campaignPreview?.classList.toggle("hidden", !isCampaign);
+    els.validatePreview?.classList.toggle("hidden", isCampaign);
+    els.clear?.classList.toggle("col-span-2", isCampaign);
     els.typeTabs.forEach(tab => {
       const active = tab.dataset.generatorType === type;
       tab.classList.toggle("bg-accentSoft", active);
@@ -383,6 +387,13 @@
     clearError();
     updateActivePreview();
     updateActionButtonStates();
+  }
+
+  function validateActiveUrl() {
+    if (state.activeType === "Campaign" || !isActiveFormComplete()) return;
+    const url = updateActivePreview();
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   async function copyText(value, message) {
@@ -511,6 +522,7 @@
     els.campaignForm.addEventListener("input", updateCampaignPreview);
     els.campaignForm.addEventListener("change", updateCampaignPreview);
     els.generate?.addEventListener("click", generateActiveItem);
+    els.validatePreview?.addEventListener("click", validateActiveUrl);
     els.copyPreview?.addEventListener("click", () => copyText(updateActivePreview(), `${state.activeType} preview copied.`));
     els.clear?.addEventListener("click", clearItems);
     els.list?.addEventListener("click", handleListAction);
@@ -529,6 +541,7 @@
     generateCampaign,
     generateLink,
     generateSurvey,
+    validateActiveUrl,
     setActiveType,
     loadItems,
     deleteItem,

@@ -48,9 +48,12 @@ function setupGenerator() {
     </form>
     <div id="generatedItemsList" class="max-h-[318px] overflow-y-auto"></div>
     <span id="generatedItemCount"></span>
-    <button id="generateItemButton"></button>
-    <button id="copyGeneratorPreviewButton"></button>
-    <button id="clearGeneratedItemsButton"></button>
+    <div id="generatorActions" class="grid grid-cols-2">
+      <button id="generateItemButton"></button>
+      <button id="validateGeneratorPreviewButton"></button>
+      <button id="copyGeneratorPreviewButton"></button>
+      <button id="clearGeneratedItemsButton"></button>
+    </div>
     <p id="generatorStatusText" class="hidden"></p>
     <h2 id="generatorFormatTitle"></h2>
     <p id="generatorFormatDescription"></p>
@@ -123,13 +126,15 @@ describe('Generate tool', () => {
     expect(document.querySelector('[data-saved-result]').getAttribute('title')).toBe(generator.state.items[0].value);
   });
 
-  test('enables Generate and Copy only when every link field is complete', () => {
+  test('enables Generate, Validate, and Copy only when every link field is complete', () => {
     setupGenerator();
     const button = document.getElementById('generateItemButton');
+    const validateButton = document.getElementById('validateGeneratorPreviewButton');
     const copyButton = document.getElementById('copyGeneratorPreviewButton');
     const form = document.getElementById('linkGeneratorForm');
 
     expect(button.disabled).toBe(true);
+    expect(validateButton.disabled).toBe(true);
     expect(copyButton.disabled).toBe(true);
 
     ['linkCampaign', 'linkContent', 'linkTerm', 'linkCrmCampaign'].forEach(id => {
@@ -137,38 +142,78 @@ describe('Generate tool', () => {
     });
     form.dispatchEvent(new Event('input', { bubbles: true }));
     expect(button.disabled).toBe(false);
+    expect(validateButton.disabled).toBe(false);
     expect(copyButton.disabled).toBe(false);
 
     document.getElementById('linkSubUrl').value = '';
     form.dispatchEvent(new Event('input', { bubbles: true }));
     expect(button.disabled).toBe(true);
+    expect(validateButton.disabled).toBe(true);
     expect(copyButton.disabled).toBe(true);
     expect(document.getElementById('linkFormError').textContent).toBe('');
   });
 
-  test('updates Generate and Copy availability for Campaign and Survey', () => {
+  test('updates action availability for Campaign and Survey', () => {
     const generator = setupGenerator();
     const generateButton = document.getElementById('generateItemButton');
+    const validateButton = document.getElementById('validateGeneratorPreviewButton');
     const copyButton = document.getElementById('copyGeneratorPreviewButton');
 
     generator.setActiveType('Campaign');
     expect(generateButton.disabled).toBe(true);
+    expect(validateButton.disabled).toBe(true);
+    expect(validateButton.classList.contains('hidden')).toBe(true);
+    expect(document.getElementById('clearGeneratedItemsButton').classList.contains('col-span-2')).toBe(true);
     expect(copyButton.disabled).toBe(true);
 
     document.getElementById('campaignDescriptor').value = 'Upgrade';
     document.getElementById('campaignSalesplay').value = 'SP1';
     document.getElementById('campaignGeneratorForm').dispatchEvent(new Event('input', { bubbles: true }));
     expect(generateButton.disabled).toBe(false);
+    expect(validateButton.disabled).toBe(true);
     expect(copyButton.disabled).toBe(false);
 
     generator.setActiveType('Survey');
     expect(generateButton.disabled).toBe(false);
+    expect(validateButton.disabled).toBe(false);
+    expect(validateButton.classList.contains('hidden')).toBe(false);
+    expect(document.getElementById('clearGeneratedItemsButton').classList.contains('col-span-2')).toBe(false);
     expect(copyButton.disabled).toBe(false);
 
     document.getElementById('surveyJourney').value = '';
     document.getElementById('surveyGeneratorForm').dispatchEvent(new Event('input', { bubbles: true }));
     expect(generateButton.disabled).toBe(true);
+    expect(validateButton.disabled).toBe(true);
     expect(copyButton.disabled).toBe(true);
+  });
+
+  test('opens complete Link and Survey preview URLs in a new tab', () => {
+    const generator = setupGenerator();
+    const openSpy = jest.spyOn(window, 'open').mockImplementation(() => null);
+    const validateButton = document.getElementById('validateGeneratorPreviewButton');
+
+    ['linkCampaign', 'linkContent', 'linkTerm', 'linkCrmCampaign'].forEach(id => {
+      document.getElementById(id).value = 'complete';
+    });
+    document.getElementById('linkGeneratorForm').dispatchEvent(new Event('input', { bubbles: true }));
+    validateButton.click();
+
+    expect(openSpy).toHaveBeenLastCalledWith(
+      expect.stringContaining('https://norican.com/contact/?mtm_source=CRM'),
+      '_blank',
+      'noopener,noreferrer'
+    );
+
+    generator.setActiveType('Survey');
+    validateButton.click();
+    expect(openSpy).toHaveBeenLastCalledWith(
+      expect.stringContaining('https://emea.dcv.ms/GVMHka0Ltj&lang=en-us&ctx='),
+      '_blank',
+      'noopener,noreferrer'
+    );
+    expect(openSpy).toHaveBeenCalledTimes(2);
+
+    openSpy.mockRestore();
   });
 
   test('builds the encoded survey URL with normalized context values', () => {
@@ -210,6 +255,7 @@ describe('Generate tool', () => {
     expect(generator.state.items[0].value).toBe('NO-26-WW-Upgrade-SP1-EN');
     expect(JSON.parse(window.localStorage.getItem(generator.storageKey))).toHaveLength(1);
     expect(document.getElementById('generatedItemsList').textContent).toContain('NO-26-WW-Upgrade-SP1-EN');
+    expect(document.getElementById('generatorStatusText').textContent).toBe('');
   });
 
   test('loads saved campaigns and links from local storage on initialization', () => {
