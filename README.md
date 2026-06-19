@@ -1,17 +1,20 @@
 # PATTENS Email Tools
 
-PATTENS Email Tools is a simple browser-based toolkit for working with email lists and email HTML.
+PATTENS Email Tools is a browser-based toolkit for working with email lists, email HTML, and campaign assets.
 
-It brings two tools into one page:
+Three tools, one page:
 
-- Contact List Verification
-- Dynamics Email Converter
+- **Email Validator** — syntax‑check and deduplicate email addresses
+- **Dynamics Email Converter** — prepare third‑party HTML for Dynamics 365 Customer Insights – Journeys
+- **Generate** — create campaign names, tracked URLs, and encoded survey links
 
-Everything is designed to be quick, clear, and easy to use.
+Everything runs locally in your browser — no server, no account, no data leaving your machine.
 
-## Contact List Verification
+---
 
-Use the validator to check email addresses before adding them to a campaign, contact list, CRM, or import file.
+## Email Validator
+
+Check email addresses before adding them to a campaign, CRM, or import file.
 
 You can:
 
@@ -22,129 +25,153 @@ You can:
 - See how many emails are valid
 - See how many emails are invalid
 - See duplicate email addresses
-- View a full per-email report
+- View a full per‑email report
 - Download the validation report as a CSV
 - Clear the tool and start again
 
-The validator is useful for cleaning up lists before sending, importing, or sharing them.
-
-## Dynamics Email Converter
-
-Use the converter to prepare third-party email HTML for Dynamics.
-
-You can:
-
-- Paste original email HTML
-- Convert text, images, and buttons into Dynamics-ready blocks
-- Preview the original email
-- Preview the converted email
-- Copy the converted HTML
-- Refresh previews after making changes
-- See a conversion summary
-- Review warnings when the source HTML may need attention
-
-The converter is useful when adapting email templates from other tools into a format that is easier to work with in Dynamics.
-
-## Generate
-
-Use Generate to create consistent campaign names, tracked links, and encoded survey URLs. Generated items are stored in the browser and restored when the page is reopened.
-
-## One Page, Two Tools
-
-The main page includes a simple navigation switch:
-
-- Validator
-- Converter
-
-You can move between both tools without leaving the page.
-
-## Privacy
-
-The tools are designed to run in your browser.
-
-Email addresses and pasted HTML are handled locally while you use the page. The tool is intended for quick checks and conversions without requiring an account.
-
-## Limits
-
-The validator is designed for small and medium contact-list checks.
-
-Current limits:
+### Limits
 
 - CSV uploads up to 5 MB
 - Up to 300 email entries at a time
-- Converter input up to 500 KB of HTML
 
-## Validation Notes
+### What It Checks
 
-The validator checks whether email addresses look correctly formatted.
-
-It can identify common issues such as:
+The validator checks whether email addresses *look* correctly formatted. It flags:
 
 - Missing `@`
 - Invalid domain format
-- Duplicate addresses
+- Duplicate addresses (case‑insensitive)
 - Consecutive dots
 - Invalid characters
 - Overly long email addresses
 
-It does not guarantee that an email inbox exists or that a message will be delivered.
+It does **not** guarantee that an inbox exists or that a message will be delivered.
+
+---
+
+## Dynamics Email Converter
+
+Adapt third‑party email HTML into Dynamics 365 Customer Insights – Journeys compatible markup.
+
+You can:
+
+- Paste original email HTML or load a sample
+- Convert text, images, and buttons into Dynamics‑ready blocks
+- Preview the original and converted email side‑by‑side
+- Copy the converted HTML
+- Refresh previews after making manual edits
+- See a conversion summary
+- Review warnings when the source HTML may need manual attention
+
+### Limits
+
+- Converter input up to 500 KB of HTML
+
+---
+
+## Generate
+
+Create consistent marketing assets:
+
+- **Campaign names** — Business, year, region, descriptor, sales play, and language joined with hyphens
+- **Tracked URLs** — Base URL with UTM‑style parameters (source, medium, campaign, content, term, CRM campaign)
+- **Survey URLs** — Encoded CRM context appended to base survey links
+
+Generated items persist in your browser's `localStorage` and are restored when you revisit the page.
+
+---
+
+## One Page, Three Tools
+
+The main page includes a navigation bar to switch between tools:
+
+| Tool | Shortcut |
+|------|----------|
+| Generate | Default view |
+| Convert | Dynamics email converter |
+| Validate | Email validator |
+
+Switch between them without leaving the page.
+
+---
+
+## Privacy
+
+All processing happens **client‑side** in your browser. Email addresses, pasted HTML, and generated items are handled locally. No data is sent to any server.
+
+---
 
 ## Development
 
-### Running locally
+### Project Structure
+
+```
+├── index.html              # Single‑page app shell (Tailwind‑styled, imports all tools)
+├── src/
+│   ├── validator/
+│   │   └── validator.js    # Email validation logic (Pattens.validator)
+│   ├── app.js              # Dynamics email converter (Pattens.converter)
+│   └── generate.js         # Campaign/link/survey generator (Pattens.generator)
+├── __tests__/              # Jest tests (mirror src/ structure)
+│   ├── app.test.js         # Converter tests
+│   ├── generator.test.js   # Generator tests
+│   └── validator.test.js   # Validator tests (loads real source)
+├── test-fixtures/          # CSV and HTML fixture files for tests
+├── docs/                   # Conversion rules, Dynamics attribute docs
+├── skills/                 # Agent skill definitions
+├── assets/                 # Static assets (SVG logos, etc.)
+├── .github/
+│   └── copilot-instructions.md  # Copilot coding guidelines
+├── package.json
+└── README.md
+```
+
+### Running Locally
 
 Start a local development server:
 
-```
+```bash
 npm run dev
 ```
 
 Then open `http://localhost:3001` in your browser.
 
-### Running tests
+### Running Tests
 
 The project uses Jest with jsdom for automated testing:
 
-```
-npm test           # run all tests once
-npm run test:watch # run tests in watch mode
+```bash
+npm test              # run all tests once
+npm run test:watch    # run tests in watch mode
 npm run test:coverage # run tests with coverage report
 ```
 
-Two test suites are included:
+#### Test Suites
 
-- **`__tests__/app.test.js`** — Converter: HTML parsing, block analysis, Dynamics conversion, output validation, and utility functions.
-- **`__tests__/validator.test.js`** — Validator: email syntax checking, CSV parsing, duplicate detection, sanitization, and summary calculations.
+| Suite | What it covers |
+|-------|---------------|
+| `__tests__/app.test.js` | HTML parsing, block analysis, Dynamics conversion, output validation, utility functions |
+| `__tests__/generator.test.js` | Campaign code building, tracked link generation, survey URL construction, localStorage persistence |
+| `__tests__/validator.test.js` | Email syntax checking, CSV parsing, duplicate detection, sanitization, summary calculations |
 
-### Reliability features
+Tests load the **real source files** via `fs.readFileSync` + `(0, eval)(code)` — no function copies are used.
 
-The codebase includes several stability safeguards:
+### Reliability Features
 
-- **Debounced previews** — Textarea input is debounced (300ms) so typing large HTML doesn't freeze the browser.
-- **DOMParser error detection** — Malformed HTML that produces a parser error document is caught and reported instead of silently producing broken output.
-- **Exception-safe DOM walks** — Temporary attributes are always cleaned up even if the element walker throws mid-traversal.
-- **Pipeline error boundaries** — Each conversion stage (analysis, conversion, validation) fails independently so earlier results are preserved.
-- **Input size limits** — The converter rejects HTML over 500KB to prevent browser freeze from extremely large input.
-- **Deduplicated utilities** — `escapeHtml` is defined once in `app.js` and shared across both tools.
-- **Namespaced API** — Converter functions live under `window.Pattens.converter` to avoid global namespace collisions.
-- **Resilient sample loading** — Sample HTML files load with a root-relative path with a local fallback.
-- **Safe iframe sandboxes** — Preview iframes use `sandbox="allow-same-origin"` for consistent rendering while maintaining security.
+- **Debounced previews** — Textarea input is debounced (300 ms) so typing large HTML doesn't freeze the browser
+- **DOMParser error detection** — Malformed HTML that produces a parser error is caught and reported
+- **Exception‑safe DOM walks** — Temporary attributes are always cleaned up even if the walker throws
+- **Pipeline error boundaries** — Each conversion stage fails independently; earlier results are preserved
+- **Input size limits** — Converter rejects HTML over 500 KB; validator rejects files over 5 MB
+- **Namespaced APIs** — All modules live under `window.Pattens.{module}` to avoid global collisions
+- **Resilient sample loading** — Sample HTML files load with a root‑relative path and a local fallback
+- **Safe iframe sandboxes** — Preview iframes use `sandbox="allow-same-origin"` for consistent rendering
 
-## Files Included
-
-The project includes:
-
-- `index.html` for the combined main app
-- `app.js` for the converter behaviour (namespaced under `window.Pattens.converter`)
-- `styles.css` for the visual theme
-- Sample CSV files for testing the validator
-- `__tests__/` for automated Jest test suites
-- `docs/` for conversion rules and Dynamics template attribute reference
-- `skills/` for the dynamics-email-converter agent skill definition
-- Visual assets used by the interface
+---
 
 ## Credits
 
 Copyright Pattens 2026.
 
 Built by Mylo Kaye.
+

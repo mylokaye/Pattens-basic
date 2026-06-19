@@ -1,146 +1,29 @@
 /**
- * Tests for the Email Validator functions
+ * Tests for the Email Validator functions.
+ *
+ * Loads the real source from src/validator/validator.js
+ * and tests against it — no inline copies.
+ *
  * @jest-environment jsdom
  */
 
-// Replicate the validator functions from index.html for isolated testing
-const VALIDATOR_MAX_FILE_SIZE = 5 * 1024 * 1024;
-const VALIDATOR_MAX_EMAILS = 300;
-const VALIDATOR_MAX_EMAIL_LENGTH = 254;
-const VALIDATOR_MAX_LOCAL_PART_LENGTH = 64;
+const fs = require('fs');
+const path = require('path');
 
-function sanitizeEmail(email) {
-  return String(email || '')
-    .replace(/[<>"';\\]/g, '')
-    .replace(/[\r\n\t]/g, '')
-    .trim();
-}
+// Load the real validator source (same eval pattern as app.test.js and generator.test.js)
+const validatorCode = fs.readFileSync(
+  path.join(__dirname, '..', 'src', 'validator', 'validator.js'),
+  'utf-8'
+);
+(0, eval)(validatorCode);
 
-function isValidEmailSyntax(email) {
-  if (!email || typeof email !== 'string') return false;
-  if (email.length > VALIDATOR_MAX_EMAIL_LENGTH) return false;
-  if ((email.match(/@/g) || []).length !== 1) return false;
-  if (email.includes('..')) return false;
-
-  const [localPart, domainPart] = email.split('@');
-  if (!localPart || !domainPart) return false;
-  if (localPart.length > VALIDATOR_MAX_LOCAL_PART_LENGTH) return false;
-  if (!/^[a-zA-Z0-9._+-]+$/.test(localPart)) return false;
-  if (localPart.startsWith('.') || localPart.endsWith('.')) return false;
-  if (!domainPart.includes('.')) return false;
-  if (!/^[a-zA-Z0-9.-]+$/.test(domainPart)) return false;
-  if (domainPart.startsWith('.') || domainPart.endsWith('.')) return false;
-  if (domainPart.startsWith('-') || domainPart.endsWith('-')) return false;
-
-  const labels = domainPart.split('.');
-  if (labels.some((label) => !label || label.startsWith('-') || label.endsWith('-'))) return false;
-
-  const tld = labels[labels.length - 1];
-  return /^[a-zA-Z]{2,63}$/.test(tld);
-}
-
-function extractEmailsFromText(text) {
-  const rows = parseCSV(text);
-  const emails = [];
-
-  rows.forEach((row) => {
-    row.forEach((field) => {
-      String(field)
-        .split(/[\s;]+/)
-        .map((value) => sanitizeEmail(value))
-        .filter(Boolean)
-        .forEach((candidate) => emails.push(candidate));
-    });
-  });
-
-  return emails;
-}
-
-function parseCSV(text) {
-  const rows = [];
-  let row = [];
-  let field = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    const next = text[i + 1];
-
-    if (char === '"' && inQuotes && next === '"') {
-      field += '"';
-      i++;
-    } else if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      row.push(field);
-      field = '';
-    } else if ((char === '\n' || char === '\r') && !inQuotes) {
-      if (char === '\r' && next === '\n') i++;
-      row.push(field);
-      if (row.some((value) => value.trim() !== '')) rows.push(row);
-      row = [];
-      field = '';
-    } else {
-      field += char;
-    }
-  }
-
-  row.push(field);
-  if (row.some((value) => value.trim() !== '')) rows.push(row);
-  return rows;
-}
-
-function validateEmails(emails) {
-  const seen = new Set();
-  const emailResults = [];
-  let validCount = 0;
-  let invalidCount = 0;
-  let duplicateCount = 0;
-
-  emails.forEach((email) => {
-    const normalized = email.toLowerCase();
-
-    if (seen.has(normalized)) {
-      duplicateCount++;
-      emailResults.push({
-        email,
-        status: 'Duplicate',
-        valid: false,
-      });
-      return;
-    }
-
-    seen.add(normalized);
-    const valid = isValidEmailSyntax(email);
-
-    if (valid) {
-      validCount++;
-    } else {
-      invalidCount++;
-    }
-
-    emailResults.push({
-      email,
-      status: valid ? 'Valid' : 'Invalid',
-      valid,
-    });
-  });
-
-  const checkedTotal = validCount + invalidCount;
-  const validRate = checkedTotal > 0 ? Math.round((validCount / checkedTotal) * 100) : 0;
-
-  return {
-    summary: {
-      total: emailResults.length,
-      checked: checkedTotal,
-      valid: validCount,
-      invalid: invalidCount,
-      duplicate: duplicateCount,
-      validRate,
-    },
-    emails: emailResults,
-  };
-}
+// Convenience aliases from the Pattens namespace
+const V = window.Pattens.validator;
+const sanitizeEmail = V.sanitizeEmail;
+const isValidEmailSyntax = V.isValidEmailSyntax;
+const extractEmailsFromText = V.extractEmailsFromText;
+const parseCSV = V.parseCSV;
+const validateEmails = V.validateEmails;
 
 describe('isValidEmailSyntax', () => {
   test('validates a standard email', () => {

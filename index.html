@@ -539,10 +539,8 @@
         });
       }
 
-      const VALIDATOR_MAX_FILE_SIZE = 5 * 1024 * 1024;
-      const VALIDATOR_MAX_EMAILS = 300;
-      const VALIDATOR_MAX_EMAIL_LENGTH = 254;
-      const VALIDATOR_MAX_LOCAL_PART_LENGTH = 64;
+      // Validator constants from shared module — see src/validator/validator.js
+      const V = Pattens.validator;
 
       const validatorState = {
         results: [],
@@ -620,7 +618,7 @@
         setValidatorStatus(`Loading ${file.name}...`);
 
         try {
-          if (file.size > VALIDATOR_MAX_FILE_SIZE) {
+          if (file.size > V.MAX_FILE_SIZE) {
             throw new Error("File too large. Maximum size is 5MB.");
           }
 
@@ -638,20 +636,20 @@
 
       function validateCurrentInput() {
         clearValidatorError();
-        const rawEmails = extractEmailsFromText(validatorEls.emailInput.value);
+        const rawEmails = V.extractEmailsFromText(validatorEls.emailInput.value);
 
         if (rawEmails.length === 0) {
           showValidatorError("Paste or upload at least one email address.");
           return;
         }
 
-        if (rawEmails.length > VALIDATOR_MAX_EMAILS) {
+        if (rawEmails.length > V.MAX_EMAILS) {
           showValidatorError("Input exceeds the 300 email limit.");
           return;
         }
 
         setValidatorStatus("Validating emails...");
-        const result = validateEmails(rawEmails);
+        const result = V.validateEmails(rawEmails);
         validatorState.results = result.emails;
         validatorState.summary = result.summary;
         renderValidatorSummary();
@@ -681,138 +679,8 @@
         setActiveValidatorDetails("summary");
       }
 
-      function extractEmailsFromText(text) {
-        const rows = parseCSV(text);
-        const emails = [];
-
-        rows.forEach(row => {
-          row.forEach(field => {
-            String(field)
-              .split(/[\s;]+/)
-              .map(value => sanitizeEmail(value))
-              .filter(Boolean)
-              .forEach(candidate => emails.push(candidate));
-          });
-        });
-
-        return emails;
-      }
-
-      function parseCSV(text) {
-        const rows = [];
-        let row = [];
-        let field = "";
-        let inQuotes = false;
-
-        for (let i = 0; i < text.length; i++) {
-          const char = text[i];
-          const next = text[i + 1];
-
-          if (char === '"' && inQuotes && next === '"') {
-            field += '"';
-            i++;
-          } else if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === "," && !inQuotes) {
-            row.push(field);
-            field = "";
-          } else if ((char === "\n" || char === "\r") && !inQuotes) {
-            if (char === "\r" && next === "\n") i++;
-            row.push(field);
-            if (row.some(value => value.trim() !== "")) rows.push(row);
-            row = [];
-            field = "";
-          } else {
-            field += char;
-          }
-        }
-
-        row.push(field);
-        if (row.some(value => value.trim() !== "")) rows.push(row);
-        return rows;
-      }
-
-      function sanitizeEmail(email) {
-        return String(email || "")
-          .replace(/[<>"';\\]/g, "")
-          .replace(/[\r\n\t]/g, "")
-          .trim();
-      }
-
-      function validateEmails(emails) {
-        const seen = new Set();
-        const emailResults = [];
-        let validCount = 0;
-        let invalidCount = 0;
-        let duplicateCount = 0;
-
-        emails.forEach(email => {
-          const normalized = email.toLowerCase();
-
-          if (seen.has(normalized)) {
-            duplicateCount++;
-            emailResults.push({
-              email,
-              status: "Duplicate",
-              valid: false
-            });
-            return;
-          }
-
-          seen.add(normalized);
-          const valid = isValidEmailSyntax(email);
-
-          if (valid) {
-            validCount++;
-          } else {
-            invalidCount++;
-          }
-
-          emailResults.push({
-            email,
-            status: valid ? "Valid" : "Invalid",
-            valid
-          });
-        });
-
-        const checkedTotal = validCount + invalidCount;
-        const validRate = checkedTotal > 0 ? Math.round((validCount / checkedTotal) * 100) : 0;
-
-        return {
-          summary: {
-            total: emailResults.length,
-            checked: checkedTotal,
-            valid: validCount,
-            invalid: invalidCount,
-            duplicate: duplicateCount,
-            validRate
-          },
-          emails: emailResults
-        };
-      }
-
-      function isValidEmailSyntax(email) {
-        if (!email || typeof email !== "string") return false;
-        if (email.length > VALIDATOR_MAX_EMAIL_LENGTH) return false;
-        if ((email.match(/@/g) || []).length !== 1) return false;
-        if (email.includes("..")) return false;
-
-        const [localPart, domainPart] = email.split("@");
-        if (!localPart || !domainPart) return false;
-        if (localPart.length > VALIDATOR_MAX_LOCAL_PART_LENGTH) return false;
-        if (!/^[a-zA-Z0-9._+-]+$/.test(localPart)) return false;
-        if (localPart.startsWith(".") || localPart.endsWith(".")) return false;
-        if (!domainPart.includes(".")) return false;
-        if (!/^[a-zA-Z0-9.-]+$/.test(domainPart)) return false;
-        if (domainPart.startsWith(".") || domainPart.endsWith(".")) return false;
-        if (domainPart.startsWith("-") || domainPart.endsWith("-")) return false;
-
-        const labels = domainPart.split(".");
-        if (labels.some(label => !label || label.startsWith("-") || label.endsWith("-"))) return false;
-
-        const tld = labels[labels.length - 1];
-        return /^[a-zA-Z]{2,63}$/.test(tld);
-      }
+      // Validator logic is loaded from src/validator/validator.js (Pattens.validator)
+      // — see V = Pattens.validator alias above.
 
       function renderValidatorSummary() {
         const rows = [
@@ -859,7 +727,7 @@
       }
 
       function updateValidatorInputCount() {
-        const count = extractEmailsFromText(validatorEls.emailInput.value).length;
+        const count = V.extractEmailsFromText(validatorEls.emailInput.value).length;
         validatorEls.inputCount.textContent = `${count} found`;
       }
 
@@ -944,6 +812,7 @@
         setActiveValidatorDetails
       };
     </script>
+    <script src="./src/validator/validator.js"></script>
     <script src="./app.js?v=20260614-combined"></script>
     <script src="./generate.js?v=20260619-generate"></script>
   </body>
