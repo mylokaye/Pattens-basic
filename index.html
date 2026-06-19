@@ -481,10 +481,34 @@
 
       <footer class="mt-auto rounded-lg border border-white/10 bg-white/[0.04] px-4 py-4 text-sm text-slate-300 shadow-sm backdrop-blur-[18px]">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p class="font-semibold text-white">Copyright 2026</p>
+          <button id="licenseDialogTrigger" type="button" aria-haspopup="dialog" aria-controls="licenseDialog" class="w-fit font-semibold text-white transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60">
+            Copyright 2026
+          </button>
           <p class="font-bold text-muted">Built with AI</p>
         </div>
       </footer>
+
+      <dialog id="licenseDialog" aria-labelledby="licenseDialogTitle" class="m-auto max-h-[calc(100vh-2rem)] w-[min(680px,calc(100%-2rem))] overflow-hidden rounded-xl border border-white/15 bg-[#0b1220]/95 p-0 text-slate-200 shadow-2xl backdrop:bg-slate-950/80 backdrop:backdrop-blur-sm">
+        <div class="flex max-h-[calc(100vh-2rem)] flex-col">
+          <header class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-6">
+            <div>
+              <p class="text-xs font-extrabold uppercase tracking-[0.2em] text-accent">Licence</p>
+              <h2 id="licenseDialogTitle" class="mt-1 text-lg font-extrabold text-white">NON-COMMERCIAL LICENSE</h2>
+            </div>
+            <form method="dialog">
+              <button type="submit" class="grid h-10 w-10 place-items-center rounded-lg border border-white/10 bg-white/5 text-xl font-semibold text-muted transition hover:border-accent/50 hover:bg-white/10 hover:text-white" aria-label="Close licence">&times;</button>
+            </form>
+          </header>
+
+          <div class="space-y-5 overflow-y-auto px-5 py-5 text-sm font-medium leading-7 text-slate-300 sm:px-6 sm:py-6">
+            <p class="font-bold text-white">Copyright (c) 2026 Mylo Kaye</p>
+            <p>Permission is granted to use, copy, modify, and study this software for personal, educational, research, hobby, and other non-commercial purposes.</p>
+            <p>Commercial use of this software, in whole or in part, is prohibited without prior written permission from the copyright holder.</p>
+            <p>Redistribution of modified versions must retain this licence and the above copyright notice.</p>
+            <p class="rounded-lg border border-amber-300/20 bg-amber-300/5 p-4 text-xs font-bold leading-6 text-amber-100">THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF THE SOFTWARE.</p>
+          </div>
+        </div>
+      </dialog>
     </main>
 
     <script src="./src/validator/validator.js"></script>
@@ -510,6 +534,14 @@
         nav: document.querySelectorAll(".tool-nav"),
         panels: document.querySelectorAll("[data-tool-panel]")
       };
+
+      const licenseDialog = document.getElementById("licenseDialog");
+      const licenseDialogTrigger = document.getElementById("licenseDialogTrigger");
+
+      licenseDialogTrigger.addEventListener("click", () => licenseDialog.showModal());
+      licenseDialog.addEventListener("click", event => {
+        if (event.target === licenseDialog) licenseDialog.close();
+      });
 
       toolEls.nav.forEach(button => {
         button.addEventListener("click", () => setActiveTool(button.dataset.tool));
