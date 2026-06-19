@@ -5,15 +5,6 @@
   const MAX_INPUT_SIZE = 500 * 1024; // 500KB — prevent browser freeze on large HTML
   const DEBOUNCE_MS = 300; // ms delay before refreshing previews after typing stops
 
-  const sampleFiles = [
-    "mailchimp-basic.html",
-    "hubspot-newsletter.html",
-    "simple-table-email.html",
-    "stripo.html",
-    "outlook-vml-heavy.html",
-    "broken-html.html"
-  ];
-
 const textTags = new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"]);
 const unsupportedTags = new Set(["form", "script", "iframe", "video", "audio", "canvas", "object", "embed", "select", "textarea"]);
 const buttonTerms = ["read more", "view", "shop", "buy", "learn more", "details", "report", "briefing", "kit"];
@@ -37,8 +28,6 @@ const state = {
 };
 
 const els = {
-  sampleSelect: document.getElementById("sampleSelect"),
-  fileInput: document.getElementById("fileInput"),
   originalHtmlTab: document.getElementById("originalHtmlTab"),
   convertedHtmlTab: document.getElementById("convertedHtmlTab"),
   originalHtml: document.getElementById("originalHtml"),
@@ -67,8 +56,6 @@ document.querySelectorAll(".pipeline-button").forEach((button) => {
 
 els.copyButton.addEventListener("click", copyConvertedHtml);
 els.refreshButton.addEventListener("click", refreshPreviews);
-els.sampleSelect?.addEventListener("change", () => loadSample(els.sampleSelect.value));
-els.fileInput?.addEventListener("change", loadUploadedFile);
 els.originalHtmlTab.addEventListener("click", () => setActiveOriginalView("html"));
 els.originalPreviewTab.addEventListener("click", () => setActiveOriginalView("preview"));
 els.convertedHtmlTab.addEventListener("click", () => setActiveConvertedView("html"));
@@ -85,14 +72,6 @@ els.convertedHtml.addEventListener("input", debounce(() => {
 }, DEBOUNCE_MS));
 
 function init() {
-  if (els.sampleSelect) {
-    sampleFiles.forEach((name) => {
-      const option = document.createElement("option");
-      option.value = name;
-      option.textContent = name;
-      els.sampleSelect.appendChild(option);
-    });
-  }
   renderSummary();
   setActiveOriginalView("html");
   setActiveConvertedView("html");
@@ -101,54 +80,6 @@ function init() {
   if (window.lucide) {
     window.lucide.createIcons();
   }
-}
-
-async function loadSample(name) {
-  if (!name) {
-    return;
-  }
-  setStatus(`Loading ${name}...`);
-  clearError();
-  try {
-    const response = await fetch(`/test-emails/${name}`);
-    if (!response.ok) {
-      // Fall back to relative path for local development
-      const fallback = await fetch(`test-emails/${name}`);
-      if (!fallback.ok) {
-        throw new Error(`Unable to load ${name}. Serve the repository root or upload the file manually.`);
-      }
-      els.originalHtml.value = await fallback.text();
-    } else {
-      els.originalHtml.value = await response.text();
-    }
-    els.convertedHtml.value = "";
-    resetPipelineState();
-    setActiveOriginalView("html");
-    setActiveConvertedView("html");
-    refreshPreviews();
-  } catch (error) {
-    showError(error.message);
-  } finally {
-    setStatus("");
-  }
-}
-
-function loadUploadedFile(event) {
-  const file = event.target.files && event.target.files[0];
-  if (!file) {
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = () => {
-    els.originalHtml.value = String(reader.result || "");
-    els.convertedHtml.value = "";
-    resetPipelineState();
-    setActiveOriginalView("html");
-    setActiveConvertedView("html");
-    refreshPreviews();
-  };
-  reader.onerror = () => showError("Unable to read the selected file.");
-  reader.readAsText(file);
 }
 
 function runPipeline() {

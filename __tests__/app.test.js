@@ -11,7 +11,7 @@ const path = require('path');
 // exist before the code is evaluated.
 
 const TEST_IDS = [
-  'sampleSelect', 'fileInput', 'originalHtmlTab', 'convertedHtmlTab',
+  'originalHtmlTab', 'convertedHtmlTab',
   'originalHtml', 'convertedHtml', 'originalPreviewTab', 'convertedPreviewTab',
   'copyButton', 'refreshButton', 'statusText', 'summaryRows',
   'originalPreview', 'convertedPreview', 'malformedBadge', 'errorBox',

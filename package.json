@@ -1,7 +1,7 @@
 {
-  "name": "csv-email-validator",
+  "name": "pattens-email-tools",
   "version": "1.0.0",
-  "description": "A static web application that validates email address syntax from CSV files",
+  "description": "Browser-based email toolkit: validate email lists, convert HTML for Dynamics 365, and generate campaign assets",
   "main": "index.html",
   "scripts": {
     "dev": "python3 -m http.server 3001",
@@ -16,7 +16,10 @@
   "keywords": [
     "email",
     "validator",
-    "csv",
+    "converter",
+    "dynamics-365",
+    "campaign",
+    "generator",
     "static"
   ],
   "author": "PATTENS",
