@@ -77,11 +77,9 @@ describe('analyseEmailHtml', () => {
   test('analyses simple email HTML', () => {
     const html = '<html><body><h1>Welcome</h1><p>Hello world</p></body></html>';
     const result = analyseEmailHtml(html);
-    expect(result).toHaveProperty('containers');
     expect(result).toHaveProperty('textBlocks');
     expect(result).toHaveProperty('imageBlocks');
     expect(result).toHaveProperty('buttonBlocks');
-    expect(result).toHaveProperty('protectedRegions');
     expect(result).toHaveProperty('warnings');
     expect(Array.isArray(result.warnings)).toBe(true);
   });
@@ -97,6 +95,12 @@ describe('analyseEmailHtml', () => {
     const result = analyseEmailHtml(html);
     const malformed = result.warnings.filter((w) => w.type === 'malformed-html');
     expect(malformed.length).toBeGreaterThanOrEqual(0); // may or may not detect
+  });
+
+  test('allows greater-than signs inside quoted attributes', () => {
+    const html = '<html><body><img src="rating.png" title="5 >" alt="5 >"></body></html>';
+    const result = analyseEmailHtml(html);
+    expect(result.warnings.some((warning) => warning.type === 'malformed-html')).toBe(false);
   });
 
   test('detects unsupported tags', () => {
@@ -142,6 +146,51 @@ describe('convertEmailHtml', () => {
     expect(result).toHaveProperty('convertedHtml');
     expect(typeof result.convertedHtml).toBe('string');
   });
+
+  test('creates Button blocks without protection while preserving styled button styles', () => {
+    const html = `
+      <html><body>
+        <p>Editable paragraph content.</p>
+        <a href="https://example.com" style="display:inline-block;padding:12px;background:#000">Read more</a>
+        <img src="logo.png" alt="Company logo">
+        <footer><p>Manage preferences or unsubscribe here.</p></footer>
+      </body></html>`;
+    const result = convertEmailHtml(html, analyseEmailHtml(html));
+    const doc = parseHtml(result.convertedHtml);
+    const types = [...doc.querySelectorAll('[data-editorblocktype]')]
+      .map((element) => element.getAttribute('data-editorblocktype'));
+
+    expect(new Set(types)).toEqual(new Set(['Text', 'Button', 'Image']));
+    expect(doc.querySelector('a[href="https://example.com"]').getAttribute('style')).toContain('background:#000');
+    expect(doc.querySelector('a[href="https://example.com"]').closest('[data-editorblocktype="Button"]').hasAttribute('data-protected')).toBe(false);
+    expect(result.summary).not.toHaveProperty('protectedRegionsMarked');
+  });
+
+  test('preserves an existing complete Dynamics Button block without adding a container', () => {
+    const html = `
+      <html><body>
+        <div data-editorblocktype="Button">
+          <div class="buttonWrapper"><a href="https://example.com" style="background:#123456">Existing button</a></div>
+        </div>
+      </body></html>`;
+    const result = convertEmailHtml(html, analyseEmailHtml(html));
+    const doc = parseHtml(result.convertedHtml);
+    const button = doc.querySelector('[data-editorblocktype="Button"]');
+
+    expect(button.querySelector('.buttonWrapper a').getAttribute('style')).toBe('background:#123456');
+    expect(button.closest('[data-container="true"]')).toBeNull();
+    expect(doc.querySelectorAll('[data-editorblocktype="Button"]')).toHaveLength(1);
+  });
+
+  test('does not turn layout cells into standalone Dynamics containers', () => {
+    const html = '<html><body><table><tr><td><p>Editable paragraph content.</p></td></tr></table></body></html>';
+    const result = convertEmailHtml(html, analyseEmailHtml(html));
+    const doc = parseHtml(result.convertedHtml);
+    const cell = doc.querySelector('td');
+
+    expect(cell.firstElementChild.getAttribute('data-container')).toBe('true');
+    expect(cell.querySelectorAll('[data-container="true"]')).toHaveLength(1);
+  });
 });
 
 describe('validateConvertedHtml', () => {
@@ -183,6 +232,12 @@ describe('conversionMarkerSummary', () => {
     const html = '<html><body><p>No markers here</p></body></html>';
     const summary = conversionMarkerSummary(html);
     expect(summary.containerCount).toBe(0);
+    expect(summary.editorBlockCount).toBe(0);
+  });
+
+  test('does not count unsupported editor block types', () => {
+    const html = '<html><body><div data-editorblocktype="Divider"></div></body></html>';
+    const summary = conversionMarkerSummary(html);
     expect(summary.editorBlockCount).toBe(0);
   });
 });

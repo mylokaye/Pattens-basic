@@ -35,7 +35,7 @@ Use the converter to prepare third-party email HTML for Dynamics.
 You can:
 
 - Paste original email HTML
-- Convert the HTML into a Dynamics-ready structure
+- Convert text, images, and buttons into Dynamics-ready blocks
 - Preview the original email
 - Preview the converted email
 - Copy the converted HTML
@@ -44,6 +44,10 @@ You can:
 - Review warnings when the source HTML may need attention
 
 The converter is useful when adapting email templates from other tools into a format that is easier to work with in Dynamics.
+
+## Generate
+
+Use Generate to create consistent campaign names, tracked links, and encoded survey URLs. Generated items are stored in the browser and restored when the page is reopened.
 
 ## One Page, Two Tools
 

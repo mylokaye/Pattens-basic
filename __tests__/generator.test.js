@@ -1,0 +1,206 @@
+/**
+ * Tests for the Generate tool.
+ * @jest-environment jsdom
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const generatorCode = fs.readFileSync(path.join(__dirname, '..', 'generate.js'), 'utf8');
+
+function setupGenerator() {
+  document.body.innerHTML = `
+    <button class="generator-type-tab" data-generator-type="Link"></button>
+    <button class="generator-type-tab" data-generator-type="Campaign"></button>
+    <button class="generator-type-tab" data-generator-type="Survey"></button>
+    <form id="surveyGeneratorForm" class="hidden">
+      <input id="surveyBaseUrl" value="https://emea.dcv.ms/GVMHka0Ltj">
+      <select id="surveyLanguage"></select>
+      <select id="surveyLob"></select>
+      <input id="surveyJourney" value="NO-Inquiry">
+      <input id="surveyCampaign" value="NO-Inquiry">
+      <input id="surveyContent" value="NO-Inquiry-EN">
+      <input id="surveyMedium" value="Email">
+      <output id="surveyPreview"></output>
+      <p id="surveyFormError" class="hidden"></p>
+    </form>
+    <form id="linkGeneratorForm" class="hidden">
+      <select id="linkBaseUrl"></select>
+      <input id="linkSubUrl" value="contact">
+      <input id="linkSource" value="CRM">
+      <input id="linkMedium" value="Email">
+      <input id="linkCampaign">
+      <input id="linkContent">
+      <input id="linkTerm">
+      <input id="linkCrmCampaign">
+      <output id="linkPreview"></output>
+      <p id="linkFormError" class="hidden"></p>
+    </form>
+    <form id="campaignGeneratorForm">
+      <select id="campaignBusiness"></select>
+      <select id="campaignYear"></select>
+      <select id="campaignRegion"></select>
+      <select id="campaignLanguage"></select>
+      <input id="campaignDescriptor">
+      <input id="campaignSalesplay">
+      <output id="campaignPreview"></output>
+      <p id="campaignFormError" class="hidden"></p>
+    </form>
+    <div id="generatedItemsList"></div>
+    <span id="generatedItemCount"></span>
+    <button id="generateItemButton"></button>
+    <button id="copyGeneratorPreviewButton"></button>
+    <button id="clearGeneratedItemsButton"></button>
+    <p id="generatorStatusText" class="hidden"></p>
+    <h2 id="generatorFormatTitle"></h2>
+    <p id="generatorFormatDescription"></p>
+  `;
+  window.Pattens = {};
+  (0, eval)(generatorCode);
+  return window.Pattens.generator;
+}
+
+describe('Generate tool', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  test('builds a complete campaign code from selected values', () => {
+    const generator = setupGenerator();
+    expect(generator.state.activeType).toBe('Link');
+    expect(generator.buildCampaignCode({
+      business: 'NO',
+      year: '26',
+      region: 'WW',
+      descriptor: 'Upgrade',
+      salesplay: 'SP1',
+      language: 'EN',
+    })).toBe('NO-26-WW-Upgrade-SP1-EN');
+  });
+
+  test('omits optional region and language segments', () => {
+    const generator = setupGenerator();
+    expect(generator.buildCampaignCode({
+      business: 'DI',
+      year: '25',
+      region: '',
+      descriptor: 'Product launch',
+      salesplay: 'SP2',
+      language: '',
+    })).toBe('DI-25-Product-launch-SP2');
+  });
+
+  test('builds a tracked link and uppercases non-URL values', () => {
+    const generator = setupGenerator();
+    expect(generator.buildLinkUrl({
+      baseUrl: 'https://norican.com',
+      subUrl: 'contact',
+      source: 'crm',
+      medium: 'Email',
+      campaign: 'upgrade1',
+      content: 'en',
+      term: 'cta',
+      crmCampaign: 'no-26-upgrade',
+    })).toBe('https://norican.com/contact/?mtm_source=CRM&mtm_medium=EMAIL&mtm_campaign=UPGRADE1&mtm_content=EN&mtm_term=CTA&crm_campaign=NO-26-UPGRADE');
+  });
+
+  test('generates, stores, and renders a tracked link', () => {
+    const generator = setupGenerator();
+    generator.setActiveType('Link');
+    document.getElementById('linkCampaign').value = 'upgrade1';
+    document.getElementById('linkContent').value = 'en';
+    document.getElementById('linkTerm').value = 'cta';
+    document.getElementById('linkCrmCampaign').value = 'no-26-upgrade';
+
+    document.getElementById('linkGeneratorForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    expect(generator.state.items).toHaveLength(1);
+    expect(generator.state.items[0].type).toBe('Link');
+    expect(generator.state.items[0].value).toContain('mtm_medium=EMAIL');
+    expect(JSON.parse(window.localStorage.getItem(generator.storageKey))).toHaveLength(1);
+    expect(document.getElementById('generatedItemsList').textContent).toContain('https://norican.com/contact/');
+    expect(document.querySelector('[data-saved-result]').classList.contains('truncate')).toBe(true);
+    expect(document.querySelector('[data-saved-result]').getAttribute('title')).toBe(generator.state.items[0].value);
+  });
+
+  test('builds the encoded survey URL with normalized context values', () => {
+    const generator = setupGenerator();
+    expect(generator.buildSurveyUrl({
+      baseUrl: 'https://emea.dcv.ms/GVMHka0Ltj',
+      lang: 'en-us',
+      journey: 'NO-Inquiry',
+      lob: 'Norican',
+      campaign: 'NO-Inquiry',
+      content: 'NO-Inquiry-EN',
+      medium: 'Email',
+    })).toBe('https://emea.dcv.ms/GVMHka0Ltj&lang=en-us&ctx=%7B%22journey%22%3A%22no-inquiry%22%2C%22lob%22%3A%22Norican%22%2C%22source%22%3A%22CRM%22%2C%22campaign%22%3A%22no-inquiry%22%2C%22medium%22%3A%22Email%22%2C%22content%22%3A%22no-inquiry-en%22%7D');
+  });
+
+  test('generates, stores, and renders a survey URL', () => {
+    const generator = setupGenerator();
+    generator.setActiveType('Survey');
+    document.getElementById('surveyGeneratorForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    expect(generator.state.items).toHaveLength(1);
+    expect(generator.state.items[0].type).toBe('Survey');
+    expect(generator.state.items[0].value).toContain('&lang=en-us&ctx=');
+    expect(generator.state.items[0].value).toContain('%22source%22%3A%22CRM%22');
+    expect(JSON.parse(window.localStorage.getItem(generator.storageKey))).toHaveLength(1);
+    expect(document.getElementById('generatedItemsList').textContent).toContain('https://emea.dcv.ms/GVMHka0Ltj');
+  });
+
+  test('generates, stores, and renders a campaign', () => {
+    const generator = setupGenerator();
+    document.getElementById('campaignRegion').value = 'WW';
+    document.getElementById('campaignLanguage').value = 'EN';
+    document.getElementById('campaignDescriptor').value = 'Upgrade';
+    document.getElementById('campaignSalesplay').value = 'SP1';
+
+    document.getElementById('campaignGeneratorForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    expect(generator.state.items).toHaveLength(1);
+    expect(generator.state.items[0].value).toBe('NO-26-WW-Upgrade-SP1-EN');
+    expect(JSON.parse(window.localStorage.getItem(generator.storageKey))).toHaveLength(1);
+    expect(document.getElementById('generatedItemsList').textContent).toContain('NO-26-WW-Upgrade-SP1-EN');
+  });
+
+  test('loads saved campaigns and links from local storage on initialization', () => {
+    window.localStorage.setItem('pattens.generate.items.v1', JSON.stringify([
+      {
+        id: 'saved-1',
+        type: 'Campaign',
+        value: 'WB-26-NAM-Service-SP3-EN',
+        fields: {},
+        createdAt: '2026-06-19T05:00:00.000Z',
+      },
+      {
+        id: 'saved-2',
+        type: 'Link',
+        value: 'https://norican.com/contact/?mtm_source=CRM',
+        fields: {},
+        createdAt: '2026-06-19T05:01:00.000Z',
+      },
+      {
+        id: 'saved-3',
+        type: 'Survey',
+        value: 'https://emea.dcv.ms/GVMHka0Ltj&lang=en-us&ctx=%7B%7D',
+        fields: {},
+        createdAt: '2026-06-19T05:02:00.000Z',
+      },
+    ]));
+
+    const generator = setupGenerator();
+    expect(generator.state.items).toHaveLength(3);
+    expect(document.getElementById('generatedItemsList').textContent).toContain('WB-26-NAM-Service-SP3-EN');
+    expect(document.getElementById('generatedItemsList').textContent).toContain('https://norican.com/contact/');
+    expect(document.getElementById('generatedItemsList').textContent).toContain('https://emea.dcv.ms/GVMHka0Ltj');
+  });
+
+  test('requires descriptor and sales play before saving', () => {
+    const generator = setupGenerator();
+    document.getElementById('campaignGeneratorForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    expect(generator.state.items).toHaveLength(0);
+    expect(document.getElementById('campaignFormError').textContent).toContain('descriptor and sales play');
+  });
+});

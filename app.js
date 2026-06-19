@@ -14,11 +14,10 @@
     "broken-html.html"
   ];
 
-  const textTags = new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"]);
-const layoutTags = new Set(["table", "td", "th", "div", "section", "article"]);
+const textTags = new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"]);
 const unsupportedTags = new Set(["form", "script", "iframe", "video", "audio", "canvas", "object", "embed", "select", "textarea"]);
-const footerTerms = ["unsubscribe", "manage preferences", "update preferences", "subscription preferences"];
 const buttonTerms = ["read more", "view", "shop", "buy", "learn more", "details", "report", "briefing", "kit"];
+const supportedEditorBlockTypes = new Set(["Text", "Image", "Button"]);
 
 // ── Debounce utility ──────────────────────────────────────────
 function debounce(fn, delay) {
@@ -267,11 +266,9 @@ function analyseEmailDocument(html, doc) {
   }
 
   return {
-    containers: detectLayoutContainers(nodes),
     textBlocks: detectTextBlocks(nodes),
     imageBlocks: detectImageBlocks(nodes),
     buttonBlocks: detectButtonBlocks(nodes),
-    protectedRegions: detectProtectedRegions(nodes),
     warnings: dedupeWarnings(warnings)
   };
 }
@@ -287,7 +284,6 @@ function convertEmailHtml(html, analysis) {
     textBlocksMarked: 0,
     imageBlocksMarked: 0,
     buttonBlocksMarked: 0,
-    protectedRegionsMarked: 0,
     skipped: 0
   };
   const warnings = [...(conversionAnalysis.warnings || [])];
@@ -306,45 +302,18 @@ function convertEmailHtml(html, analysis) {
     return finalizeConversionResult(html, warnings, summary);
   }
 
-  const protectedElements = new Set((conversionAnalysis.protectedRegions || []).map((item) => item.element).filter(Boolean));
-  let containersAdded = 0;
-
-  (conversionAnalysis.containers || []).forEach((container) => {
-    if (containersAdded >= 4 || !container.element || !["td", "th"].includes(container.tag)) {
-      return;
-    }
-    if (container.containsTable || container.existingDynamicsContainer || protectedElements.has(container.element)) {
-      return;
-    }
-    if (!container.textPreview && !cellContainsMedia(container.element)) {
-      return;
-    }
-    if (cellContainsLogo(container.element) || hasEditorBlockContext(container.element)) {
-      return;
-    }
-    wrapContents(container.element, "div", { "data-container": "true" });
-    containersAdded += 1;
-    summary.containersAdded += 1;
-  });
-
   (conversionAnalysis.buttonBlocks || []).forEach((block) => {
-    const element = block.element;
-    if (!element || hasEditorBlockContext(element)) {
+    if (!block.element || hasEditorBlockContext(block.element)) {
       return;
     }
-    if ((warningTypes.has("outlook-specific-code") && !(block.styleSignals || []).includes("stripo-button")) || block.tag.startsWith("v:")) {
-      summary.skipped += 1;
-      warnings.push(issue("button-block-skipped", "warning", "CTA is near Outlook/VML-specific code; preserved without Button wrapper.", block));
-      return;
-    }
-    wrapElement(element, "div", { "data-editorblocktype": "Button" });
+    wrapElement(block.element, "div", { "data-editorblocktype": "Button" });
     summary.buttonBlocksMarked += 1;
-    warnings.push(issue("button-block-review", "info", "Simple CTA wrapped as a Button block; verify behavior in the Dynamics Designer.", block));
+    warnings.push(issue("button-block-review", "info", "Styled link marked as a Dynamics Button; verify its third-party HTML and styles in the Designer.", block));
   });
 
   (conversionAnalysis.textBlocks || []).forEach((block) => {
     const element = block.element;
-    if (!element || !block.safeCandidate || block.insideExistingDynamicsBlock || block.insideFooter || hasEditorBlockContext(element)) {
+    if (!element || !block.safeCandidate || block.insideExistingDynamicsBlock || hasEditorBlockContext(element)) {
       return;
     }
     wrapElement(element, "div", { "data-editorblocktype": "Text" });
@@ -353,7 +322,7 @@ function convertEmailHtml(html, analysis) {
 
   (conversionAnalysis.imageBlocks || []).forEach((block) => {
     const element = block.element;
-    if (!element || block.insideExistingDynamicsBlock || hasEditorBlockContext(element) || looksLikeHeaderLogo(block) || hasStripoButtonContext(element)) {
+    if (!element || block.insideExistingDynamicsBlock || hasEditorBlockContext(element) || hasStripoButtonContext(element)) {
       return;
     }
     const target = element.parentElement && element.parentElement.tagName.toLowerCase() === "a" ? element.parentElement : element;
@@ -363,24 +332,6 @@ function convertEmailHtml(html, analysis) {
     wrapElement(target, "div", { "data-editorblocktype": "Image" });
     summary.imageBlocksMarked += 1;
   });
-
-  (conversionAnalysis.protectedRegions || []).forEach((region) => {
-    const element = region.element;
-    if (!element || hasEditorBlockContext(element) || region.hasDynamicsProtection) {
-      return;
-    }
-    wrapContents(element, "div", { "data-editorblocktype": "Text", "data-protected": "true" });
-    summary.protectedRegionsMarked += 1;
-  });
-
-  const logo = (conversionAnalysis.imageBlocks || []).find(looksLikeHeaderLogo);
-  if (logo && logo.element && !hasEditorBlockContext(logo.element)) {
-    const target = logo.element.parentElement && logo.element.parentElement.tagName.toLowerCase() === "a" ? logo.element.parentElement : logo.element;
-    if (!hasEditorBlockContext(target)) {
-      wrapElement(target, "div", { "data-editorblocktype": "Image", "data-protected": "true" });
-      summary.protectedRegionsMarked += 1;
-    }
-  }
 
   ensureEditorBlocksHaveContainers(doc, summary);
   ensureDesignerDocumentMeta(doc, summary);
@@ -406,14 +357,14 @@ function finalizeConversionResult(convertedHtml, warnings, summary) {
 
 function conversionMarkerSummary(html) {
   const doc = parseHtml(html);
-  const editorBlocks = doc.querySelectorAll("[data-editorblocktype]");
+  const editorBlocks = [...doc.querySelectorAll("[data-editorblocktype]")]
+    .filter((element) => supportedEditorBlockTypes.has(element.getAttribute("data-editorblocktype")));
   return {
     containerCount: doc.querySelectorAll('[data-container="true"]').length,
     editorBlockCount: editorBlocks.length,
     textBlocks: doc.querySelectorAll('[data-editorblocktype="Text"]').length,
     imageBlocks: doc.querySelectorAll('[data-editorblocktype="Image"]').length,
     buttonBlocks: doc.querySelectorAll('[data-editorblocktype="Button"]').length,
-    protectedRegions: doc.querySelectorAll('[data-protected="true"], [data-locked="hard"]').length,
     hasDesignerMeta: hasDesignerDocumentMetaDoc(doc)
   };
 }
@@ -443,10 +394,9 @@ function validateConvertedHtml(originalHtml, convertedHtml, conversion = {}) {
   if (originalSnippets && !visibleText(convertedHtml).toLowerCase().includes(originalSnippets.toLowerCase().slice(0, 80))) {
     warnings.push(issue("content-preservation-review", "warning", "Converted output may be missing visible source content; review manually."));
   }
-  const allowed = new Set(["Text", "Image", "Button", "Divider"]);
   parseHtml(convertedHtml).querySelectorAll("[data-editorblocktype]").forEach((element) => {
     const type = element.getAttribute("data-editorblocktype");
-    if (!allowed.has(type)) {
+    if (!supportedEditorBlockTypes.has(type)) {
       warnings.push(issue("unknown-editorblocktype", "warning", `Unknown editor block type: ${type}.`));
     }
   });
@@ -463,25 +413,6 @@ function validateConvertedHtml(originalHtml, convertedHtml, conversion = {}) {
   };
 }
 
-function detectLayoutContainers(nodes) {
-  return nodes
-    .filter((node) => layoutTags.has(node.tag))
-    .filter((node) => node.text.length > 20 || [...node.element.children].some((child) => ["IMG", "A", "TABLE"].includes(child.tagName)))
-    .map((node) => ({
-      id: node.id,
-      tag: node.tag,
-      path: node.path,
-      line: node.line,
-      tableDepth: tableDepth(node.element),
-      existingDynamicsContainer: attrEquals(node.element, "data-container", "true"),
-      containsTable: Boolean(node.element.querySelector("table")),
-      childTags: [...node.element.children].map((child) => child.tagName.toLowerCase()).sort(),
-      textPreview: preview(node.text),
-      element: node.element,
-      reason: node.tag === "table" ? "Table layout boundary; preserve before considering inner editable cells." : "Possible safe editable region if content is simple."
-    }));
-}
-
 function detectTextBlocks(nodes) {
   return nodes
     .filter((node) => textTags.has(node.tag))
@@ -494,7 +425,6 @@ function detectTextBlocks(nodes) {
       tableDepth: tableDepth(node.element),
       textPreview: preview(node.text),
       insideExistingDynamicsBlock: Boolean(node.element.closest("[data-editorblocktype]")),
-      insideFooter: isFooterish(node.element),
       safeCandidate: !node.element.querySelector("table") && !hasVmlContext(node.element),
       element: node.element,
       reason: "Simple text element that may map to a future Text block."
@@ -541,33 +471,6 @@ function detectButtonBlocks(nodes) {
       element: node.element,
       reason: "CTA-like link; preserve by default unless a verified Dynamics button block exists."
     }));
-}
-
-function detectProtectedRegions(nodes) {
-  return nodes
-    .filter((node) => {
-      const hasFooterTerm = containsFooterTerms(node.element);
-      const hasProtection = attrEquals(node.element, "data-protected", "true") || attrEquals(node.element, "data-locked", "hard");
-      const childLayoutHasFooter = [...node.element.children].some((child) => layoutTags.has(child.tagName.toLowerCase()) && containsFooterTerms(child));
-      const minimalFooter = hasFooterTerm && !childLayoutHasFooter;
-      return hasProtection || node.tag === "footer" || (["td", "div"].includes(node.tag) && minimalFooter);
-    })
-    .map((node) => {
-      const text = node.text.toLowerCase();
-      return {
-        id: node.id,
-        tag: node.tag,
-        path: node.path,
-        line: node.line,
-        tableDepth: tableDepth(node.element),
-        textPreview: preview(node.text),
-        containsUnsubscribe: text.includes("unsubscribe"),
-        containsPreferences: text.includes("preferences") || text.includes("manage preferences"),
-        hasDynamicsProtection: attrEquals(node.element, "data-protected", "true") || attrEquals(node.element, "data-locked", "hard"),
-        element: node.element,
-        reason: "Contains unsubscribe or preference language; preserve for compliance review."
-      };
-    });
 }
 
 function parseHtml(html) {
@@ -624,7 +527,27 @@ function collectNodes(doc) {
 }
 
 function scanRawHtmlWarnings(html, warnings) {
-  const tags = html.match(/<[^!/\s][^>]*>/g) || [];
+  const tags = [];
+  for (let start = 0; start < html.length; start += 1) {
+    if (html[start] !== "<" || !/[a-z]/i.test(html[start + 1] || "")) {
+      continue;
+    }
+
+    let quote = "";
+    let end = start + 1;
+    for (; end < html.length; end += 1) {
+      const char = html[end];
+      if ((char === '"' || char === "'") && (!quote || quote === char)) {
+        quote = quote ? "" : char;
+      } else if (char === ">" && !quote) {
+        end += 1;
+        break;
+      }
+    }
+    tags.push(html.slice(start, end));
+    start = end - 1;
+  }
+
   tags.forEach((tag) => {
     const doubleQuotes = (tag.match(/"/g) || []).length;
     const singleQuotes = (tag.match(/'/g) || []).length;
@@ -731,34 +654,6 @@ function hasVmlContext(element) {
   return Boolean(element.closest("v\\:roundrect, v\\:rect, v\\:shape"));
 }
 
-function isFooterish(element) {
-  for (let current = element; current; current = current.parentElement) {
-    const tag = current.tagName.toLowerCase();
-    const childLayoutHasFooter = [...current.children].some((child) => layoutTags.has(child.tagName.toLowerCase()) && containsFooterTerms(child));
-    if (tag === "footer" || (["td", "div"].includes(tag) && containsFooterTerms(current) && !childLayoutHasFooter)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function containsFooterTerms(element) {
-  const text = normalizeText(element.textContent || "").toLowerCase();
-  return footerTerms.some((term) => text.includes(term));
-}
-
-function cellContainsMedia(element) {
-  return Boolean(element && element.querySelector("img, a"));
-}
-
-function cellContainsLogo(element) {
-  return Boolean(element && [...element.querySelectorAll("img")].some((img) => looksLikeHeaderLogo({ src: img.getAttribute("src") || "", alt: img.getAttribute("alt") || "" })));
-}
-
-function looksLikeHeaderLogo(block) {
-  return `${block.src || ""} ${block.alt || ""}`.toLowerCase().includes("logo");
-}
-
 function wrapElement(element, wrapperTag, attrs) {
   const doc = element.ownerDocument;
   const wrapper = doc.createElement(wrapperTag);
@@ -768,19 +663,8 @@ function wrapElement(element, wrapperTag, attrs) {
   return wrapper;
 }
 
-function wrapContents(element, wrapperTag, attrs) {
-  const doc = element.ownerDocument;
-  const wrapper = doc.createElement(wrapperTag);
-  Object.entries(attrs).forEach(([key, value]) => wrapper.setAttribute(key, value));
-  while (element.firstChild) {
-    wrapper.appendChild(element.firstChild);
-  }
-  element.appendChild(wrapper);
-  return wrapper;
-}
-
 function ensureEditorBlocksHaveContainers(doc, summary) {
-  doc.querySelectorAll("[data-editorblocktype]").forEach((block) => {
+  doc.querySelectorAll('[data-editorblocktype="Text"], [data-editorblocktype="Image"]').forEach((block) => {
     if (block.closest('[data-container="true"]')) {
       return;
     }
@@ -823,17 +707,13 @@ function tableDepth(element) {
 
 function hasConvertibleRegions(html) {
   const analysis = analyseEmailHtml(html);
-  return analysis.textBlocks.length > 0 || analysis.imageBlocks.length > 0;
+  return analysis.textBlocks.length > 0 || analysis.imageBlocks.length > 0 || analysis.buttonBlocks.length > 0;
 }
 
 function visibleText(html) {
   const doc = parseHtml(html);
   doc.querySelectorAll("script, style, noscript").forEach((element) => element.remove());
   return normalizeText(doc.body ? doc.body.textContent || "" : doc.textContent || "");
-}
-
-function attrEquals(element, attr, value) {
-  return (element.getAttribute(attr) || "").toLowerCase() === value.toLowerCase();
 }
 
 function classList(element) {
@@ -929,12 +809,9 @@ function syncWarnings() {
 function renderSummary() {
   const outputCounts = state.conversion.summary?.outputCounts;
   const rows = [
-    ["Containers", outputCounts ? outputCounts.containerCount : state.analysis.containers?.length || 0],
     ["Text blocks", outputCounts ? outputCounts.textBlocks : state.analysis.textBlocks?.length || 0],
     ["Image blocks", outputCounts ? outputCounts.imageBlocks : state.analysis.imageBlocks?.length || 0],
-    ["Button blocks", outputCounts ? outputCounts.buttonBlocks : state.analysis.buttonBlocks?.length || 0],
-    ["Protected regions", outputCounts ? outputCounts.protectedRegions : state.analysis.protectedRegions?.length || 0],
-    ["Designer meta", outputCounts ? (outputCounts.hasDesignerMeta ? "yes" : "no") : "not run"]
+    ["Button blocks", outputCounts ? outputCounts.buttonBlocks : state.analysis.buttonBlocks?.length || 0]
   ];
 
   const converted = statusPill("Converted", conversionStatus());
