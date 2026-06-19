@@ -420,10 +420,10 @@
     }
 
     els.list.innerHTML = `<div class="grid min-w-0 max-w-full gap-2">${state.items.map(item => `
-      <article class="min-w-0 max-w-full overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] p-3">
+      <article data-saved-type="${escapeHtml(item.type)}" class="min-w-0 max-w-full overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] p-3">
         <div class="flex min-w-0 max-w-full items-start justify-between gap-3">
           <div class="min-w-0 flex-1 overflow-hidden">
-            <p class="text-xs font-extrabold uppercase tracking-wide text-accent">${escapeHtml(item.type)}</p>
+            <p data-saved-title class="text-xs font-extrabold uppercase tracking-wide ${savedTitleColor(item.type)}">${escapeHtml(item.type)}</p>
             <p data-saved-result class="mt-1 truncate font-mono text-sm font-bold leading-6 text-white" title="${escapeHtml(item.value)}">${escapeHtml(item.value)}</p>
           </div>
           <div class="flex shrink-0 items-center gap-1">
@@ -439,6 +439,13 @@
       </article>
     `).join("")}</div>`;
     window.lucide?.createIcons();
+  }
+
+  function savedTitleColor(type) {
+    if (type === "Link") return "text-sky-300";
+    if (type === "Campaign") return "text-emerald-300";
+    if (type === "Survey") return "text-purple-300";
+    return "text-accent";
   }
 
   function handleListAction(event) {

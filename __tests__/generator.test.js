@@ -46,7 +46,7 @@ function setupGenerator() {
       <output id="campaignPreview"></output>
       <p id="campaignFormError" class="hidden"></p>
     </form>
-    <div id="generatedItemsList"></div>
+    <div id="generatedItemsList" class="max-h-[318px] overflow-y-auto"></div>
     <span id="generatedItemCount"></span>
     <button id="generateItemButton"></button>
     <button id="copyGeneratorPreviewButton"></button>
@@ -242,6 +242,10 @@ describe('Generate tool', () => {
     expect(document.getElementById('generatedItemsList').textContent).toContain('WB-26-NAM-Service-SP3-EN');
     expect(document.getElementById('generatedItemsList').textContent).toContain('https://norican.com/contact/');
     expect(document.getElementById('generatedItemsList').textContent).toContain('https://emea.dcv.ms/GVMHka0Ltj');
+    expect(document.getElementById('generatedItemsList').classList.contains('max-h-[318px]')).toBe(true);
+    expect(document.querySelector('[data-saved-type="Link"] [data-saved-title]').classList.contains('text-sky-300')).toBe(true);
+    expect(document.querySelector('[data-saved-type="Campaign"] [data-saved-title]').classList.contains('text-emerald-300')).toBe(true);
+    expect(document.querySelector('[data-saved-type="Survey"] [data-saved-title]').classList.contains('text-purple-300')).toBe(true);
   });
 
   test('does not save or show an error when required campaign fields are missing', () => {

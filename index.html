@@ -313,8 +313,7 @@
 
       <section id="generateTool" data-tool-panel="generate" class="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_360px]">
         <section class="flex min-h-[620px] flex-col overflow-hidden rounded-lg border border-white/15 bg-panel shadow-soft backdrop-blur-[18px]">
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-3 py-2">
-            <h2 class="px-2 text-sm font-extrabold text-white">Generate</h2>
+          <div class="flex flex-wrap items-center justify-start gap-3 border-b border-line px-3 py-2">
             <div class="flex items-center gap-1" aria-label="Generator type">
               <button id="linkGeneratorTab" type="button" data-generator-type="Link" aria-current="page" class="generator-type-tab h-9 rounded-md bg-accentSoft px-3 text-sm font-bold text-accent">Link</button>
               <button id="campaignGeneratorTab" type="button" data-generator-type="Campaign" class="generator-type-tab h-9 rounded-md px-3 text-sm font-bold text-muted transition hover:bg-white/10 hover:text-white">Campaign</button>
@@ -444,7 +443,7 @@
               <h2 class="px-2 text-sm font-extrabold text-white">Saved</h2>
               <span id="generatedItemCount" class="rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold text-muted shadow-sm">0 items</span>
             </div>
-            <div id="generatedItemsList" class="min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3">
+            <div id="generatedItemsList" class="min-h-0 min-w-0 max-h-[318px] max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3">
               <p class="px-1 py-2 text-sm font-medium text-muted">Generated items will appear here.</p>
             </div>
           </section>
