@@ -179,6 +179,6 @@ See the [LICENSE](LICENSE) file for the complete terms.
 
 ## Credits
 
-Copyright Pattens 2026.
+Copyright Mylo Kaye 2026.
 
-Built by Mylo Kaye.
+Built by Mylo Kaye with AI.
