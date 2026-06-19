@@ -115,7 +115,7 @@ describe('convertEmailHtml', () => {
   test('converts simple HTML with text content', () => {
     const html = '<html><head></head><body><h1>Title</h1><p>Paragraph content here for testing.</p></body></html>';
     const analysis = analyseEmailHtml(html);
-    const result = convertEmailHtml(html, analysis);
+    const result = convertEmailHtml(html);
     expect(result).toHaveProperty('convertedHtml');
     expect(result).toHaveProperty('warnings');
     expect(result).toHaveProperty('summary');
@@ -125,7 +125,7 @@ describe('convertEmailHtml', () => {
   test('preserves conversion state in summary', () => {
     const html = '<html><body><p>Simple text block here.</p></body></html>';
     const analysis = analyseEmailHtml(html);
-    const result = convertEmailHtml(html, analysis);
+    const result = convertEmailHtml(html);
     expect(result.summary).toHaveProperty('converted');
     expect(result.summary).toHaveProperty('textBlocksMarked');
   });
@@ -134,15 +134,14 @@ describe('convertEmailHtml', () => {
     // HTML with an unbalanced double quote should trigger malformed detection
     const html = '<div style="color: red">Broken "quote here';
     const analysis = analyseEmailHtml(html);
-    const result = convertEmailHtml(html, analysis);
+    const result = convertEmailHtml(html);
     expect(result).toHaveProperty('convertedHtml');
     expect(typeof result.convertedHtml).toBe('string');
   });
 
   test('handles empty HTML gracefully', () => {
     const html = '';
-    const analysis = analyseEmailHtml(html);
-    const result = convertEmailHtml(html, analysis);
+    const result = convertEmailHtml(html);
     expect(result).toHaveProperty('convertedHtml');
     expect(typeof result.convertedHtml).toBe('string');
   });
@@ -155,7 +154,7 @@ describe('convertEmailHtml', () => {
         <img src="logo.png" alt="Company logo">
         <footer><p>Manage preferences or unsubscribe here.</p></footer>
       </body></html>`;
-    const result = convertEmailHtml(html, analyseEmailHtml(html));
+    const result = convertEmailHtml(html);
     const doc = parseHtml(result.convertedHtml);
     const types = [...doc.querySelectorAll('[data-editorblocktype]')]
       .map((element) => element.getAttribute('data-editorblocktype'));
@@ -173,7 +172,7 @@ describe('convertEmailHtml', () => {
           <div class="buttonWrapper"><a href="https://example.com" style="background:#123456">Existing button</a></div>
         </div>
       </body></html>`;
-    const result = convertEmailHtml(html, analyseEmailHtml(html));
+    const result = convertEmailHtml(html);
     const doc = parseHtml(result.convertedHtml);
     const button = doc.querySelector('[data-editorblocktype="Button"]');
 
@@ -184,7 +183,7 @@ describe('convertEmailHtml', () => {
 
   test('does not turn layout cells into standalone Dynamics containers', () => {
     const html = '<html><body><table><tr><td><p>Editable paragraph content.</p></td></tr></table></body></html>';
-    const result = convertEmailHtml(html, analyseEmailHtml(html));
+    const result = convertEmailHtml(html);
     const doc = parseHtml(result.convertedHtml);
     const cell = doc.querySelector('td');
 

@@ -62,7 +62,7 @@ const els = {
 
 document.querySelectorAll(".pipeline-button").forEach((button) => {
   button.className = "flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-accent bg-accent px-4 text-sm font-bold text-[#061014] shadow-control transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-slate-500 disabled:shadow-none";
-  button.addEventListener("click", () => runPipeline(button.dataset.action));
+  button.addEventListener("click", () => runPipeline());
 });
 
 els.copyButton.addEventListener("click", copyConvertedHtml);
@@ -151,10 +151,9 @@ function loadUploadedFile(event) {
   reader.readAsText(file);
 }
 
-function runPipeline(action) {
+function runPipeline() {
   clearError();
   const original = els.originalHtml.value;
-  const converted = els.convertedHtml.value;
 
   if (!original.trim()) {
     showError("Paste, upload, or load original HTML first.");
@@ -167,73 +166,35 @@ function runPipeline(action) {
     return;
   }
 
-  if (action === "validate" && !converted.trim()) {
-    showError("Run conversion or paste converted HTML before validating.");
-    return;
-  }
-
-  setStatus(`Running ${action}...`);
+  setStatus('Running conversion...');
   const errors = [];
 
   try {
-    if (action === "analyse") {
-      try {
-        state.analysis = analyseEmailHtml(original);
-      } catch (e) {
-        errors.push(`Analysis failed: ${e.message}`);
-        console.error("Analysis error:", e);
-      }
+    try {
+      state.analysis = analyseEmailHtml(original);
+    } catch (e) {
+      errors.push(`Analysis failed: ${e.message}`);
+      console.error('Analysis error:', e);
+      state.analysis = {};
     }
-    if (action === "convert") {
-      try {
-        state.analysis = Object.keys(state.analysis).length ? state.analysis : analyseEmailHtml(original);
-      } catch (e) {
-        state.analysis = {};
-      }
-      try {
-        state.conversion = convertEmailHtml(original, state.analysis);
-        els.convertedHtml.value = state.conversion.convertedHtml;
-      } catch (e) {
-        errors.push(`Conversion failed: ${e.message}`);
-        console.error("Conversion error:", e);
-      }
+    try {
+      state.conversion = convertEmailHtml(original);
+      els.convertedHtml.value = state.conversion.convertedHtml;
+    } catch (e) {
+      errors.push(`Conversion failed: ${e.message}`);
+      console.error('Conversion error:', e);
+      state.conversion = { convertedHtml: original, warnings: [], summary: { converted: false, skipped: 1 } };
     }
-    if (action === "validate") {
-      try {
-        state.validation = validateConvertedHtml(original, converted);
-      } catch (e) {
-        errors.push(`Validation failed: ${e.message}`);
-        console.error("Validation error:", e);
-      }
+    try {
+      state.validation = validateConvertedHtml(original, state.conversion.convertedHtml, state.conversion);
+    } catch (e) {
+      errors.push(`Validation failed: ${e.message}`);
+      console.error('Validation error:', e);
     }
-    if (action === "full") {
-      try {
-        state.analysis = analyseEmailHtml(original);
-      } catch (e) {
-        errors.push(`Analysis failed: ${e.message}`);
-        console.error("Analysis error:", e);
-        state.analysis = {};
-      }
-      try {
-        state.conversion = convertEmailHtml(original, state.analysis);
-        els.convertedHtml.value = state.conversion.convertedHtml;
-      } catch (e) {
-        errors.push(`Conversion failed: ${e.message}`);
-        console.error("Conversion error:", e);
-        state.conversion = { convertedHtml: original, warnings: [], summary: { converted: false, skipped: 1 } };
-      }
-      try {
-        state.validation = validateConvertedHtml(original, state.conversion.convertedHtml, state.conversion);
-      } catch (e) {
-        errors.push(`Validation failed: ${e.message}`);
-        console.error("Validation error:", e);
-      }
-      if (action === "full") {
-        setActiveConvertedView("html");
-      }
-    }
+    setActiveConvertedView('html');
+
     if (errors.length) {
-      showError(errors.join(" "));
+      showError(errors.join(' '));
     }
     syncWarnings();
     renderSummary();
@@ -273,7 +234,7 @@ function analyseEmailDocument(html, doc) {
   };
 }
 
-function convertEmailHtml(html, analysis) {
+function convertEmailHtml(html) {
   const doc = parseHtml(html);
   const conversionAnalysis = analyseEmailDocument(html, doc);
   const warningTypes = new Set((conversionAnalysis.warnings || []).map((warning) => warning.type));
@@ -507,7 +468,6 @@ function collectNodes(doc) {
       id: `n${nextId}`,
       tag,
       path,
-      line: null,
       text: normalizeText(element.textContent || ""),
       element
     });
@@ -634,14 +594,6 @@ function hasExistingDynamicsMarkup(doc) {
   return Boolean(doc.querySelector("[data-container='true'], [data-editorblocktype]"));
 }
 
-function hasDynamicsContainer(html) {
-  return countDynamicsContainers(html) > 0;
-}
-
-function countDynamicsContainers(html) {
-  return parseHtml(html).querySelectorAll('[data-container="true"]').length;
-}
-
 function canConvertWithOutlookCode(doc) {
   return hasExistingDynamicsMarkup(doc) || hasStripoMarkup(doc);
 }
@@ -727,10 +679,6 @@ function normalizeText(value) {
 function preview(value, limit = 120) {
   const text = normalizeText(value || "");
   return text.length <= limit ? text : `${text.slice(0, limit - 1).trimEnd()}...`;
-}
-
-function countOccurrences(value, needle) {
-  return value.split(needle).length - 1;
 }
 
 function issue(type, severity, message, extra = {}) {
@@ -890,7 +838,6 @@ function renderWarnings() {
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-xs font-extrabold uppercase tracking-wide text-accent">${escapeHtml(item.severity || "warning")}</span>
         <span class="text-xs font-semibold text-muted">${escapeHtml(item.type || "pipeline")}</span>
-        ${item.line ? `<span class="text-xs font-semibold text-muted">line ${escapeHtml(item.line)}</span>` : ""}
       </div>
       <p class="mt-1 text-sm font-medium leading-5 text-ink">${escapeHtml(item.message || "Review this item.")}</p>
       ${item.path ? `<p class="mt-1 break-all text-xs text-muted">${escapeHtml(item.path)}</p>` : ""}
