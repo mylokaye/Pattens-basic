@@ -25,8 +25,10 @@ function setupGenerator() {
       <p id="surveyFormError" class="hidden"></p>
     </form>
     <form id="linkGeneratorForm" class="hidden">
-      <select id="linkBaseUrl"></select>
-      <input id="linkSubUrl" value="contact">
+      <input id="linkBaseUrl" value="https://norican.com/contact">
+      <input id="linkHighlightText">
+      <button id="linkTrackingMtm" type="button" class="link-tracking-type-toggle" data-link-tracking-type="MTM" aria-pressed="true"></button>
+      <button id="linkTrackingUtm" type="button" class="link-tracking-type-toggle" data-link-tracking-type="UTM" aria-pressed="false"></button>
       <input id="linkSource" value="CRM">
       <input id="linkMedium" value="Email">
       <input id="linkCampaign">
@@ -96,8 +98,8 @@ describe('Generate tool', () => {
   test('builds a tracked link and uppercases non-URL values', () => {
     const generator = setupGenerator();
     expect(generator.buildLinkUrl({
-      baseUrl: 'https://norican.com',
-      subUrl: 'contact',
+      baseUrl: 'https://norican.com/contact',
+      trackingType: 'MTM',
       source: 'crm',
       medium: 'Email',
       campaign: 'upgrade1',
@@ -105,6 +107,92 @@ describe('Generate tool', () => {
       term: 'cta',
       crmCampaign: 'no-26-upgrade',
     })).toBe('https://norican.com/contact/?mtm_source=CRM&mtm_medium=EMAIL&mtm_campaign=UPGRADE1&mtm_content=EN&mtm_term=CTA&crm_campaign=NO-26-UPGRADE');
+  });
+
+  test('switches tracked link parameters to UTM when selected', () => {
+    const generator = setupGenerator();
+    expect(generator.buildLinkUrl({
+      baseUrl: 'https://norican.com/contact',
+      trackingType: 'UTM',
+      source: 'crm',
+      medium: 'Email',
+      campaign: 'upgrade1',
+      content: 'en',
+      term: 'cta',
+      crmCampaign: 'no-26-upgrade',
+    })).toBe('https://norican.com/contact/?utm_source=CRM&utm_medium=EMAIL&utm_campaign=UPGRADE1&utm_content=EN&utm_term=CTA&crm_campaign=NO-26-UPGRADE');
+  });
+
+  test('builds a highlight URL without query parameters', () => {
+    const generator = setupGenerator();
+    expect(generator.buildHighlightUrl(
+      'https://example.com/page',
+      'Example'
+    )).toBe('https://example.com/page#:~:text=Example');
+  });
+
+  test('builds a highlight URL after query parameters', () => {
+    const generator = setupGenerator();
+    expect(generator.buildHighlightUrl(
+      'https://example.com/page?mtm_source=CRM',
+      'Contact our sales team'
+    )).toBe('https://example.com/page?mtm_source=CRM#:~:text=Contact%20our%20sales%20team');
+  });
+
+  test('returns empty highlight URL for empty highlight text', () => {
+    const generator = setupGenerator();
+    expect(generator.buildHighlightUrl('https://example.com/page', '   ')).toBe('');
+  });
+
+  test('replaces an existing text fragment', () => {
+    const generator = setupGenerator();
+    expect(generator.buildHighlightUrl(
+      'https://example.com/page#:~:text=Old',
+      'New text'
+    )).toBe('https://example.com/page#:~:text=New%20text');
+  });
+
+  test('drops a normal hash anchor when building a highlight URL', () => {
+    const generator = setupGenerator();
+    expect(generator.buildHighlightUrl(
+      'https://example.com/page#section',
+      'Example'
+    )).toBe('https://example.com/page#:~:text=Example');
+  });
+
+  test('encodes special characters in highlight text', () => {
+    const generator = setupGenerator();
+    expect(generator.buildHighlightUrl(
+      'https://example.com/page',
+      'Sales & service / support?'
+    )).toBe('https://example.com/page#:~:text=Sales%20%26%20service%20%2F%20support%3F');
+  });
+
+  test('allows long highlight text in the preview without blocking generation', () => {
+    setupGenerator();
+    ['linkCampaign', 'linkCrmCampaign'].forEach(id => {
+      document.getElementById(id).value = 'complete';
+    });
+    document.getElementById('linkHighlightText').value = 'a'.repeat(301);
+    document.getElementById('linkGeneratorForm').dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(document.getElementById('linkPreview').textContent).toContain('#:~:text=');
+    expect(document.getElementById('generateItemButton').disabled).toBe(false);
+  });
+
+  test('updates the link preview and format copy when tracking type changes', () => {
+    setupGenerator();
+
+    ['linkCampaign', 'linkContent', 'linkTerm', 'linkCrmCampaign'].forEach(id => {
+      document.getElementById(id).value = 'complete';
+    });
+    document.getElementById('linkTrackingUtm').click();
+
+    expect(document.getElementById('linkPreview').textContent).toContain('utm_source=CRM');
+    expect(document.getElementById('linkPreview').textContent).not.toContain('mtm_source=CRM');
+    expect(document.getElementById('generatorFormatDescription').textContent).toContain('UTM');
+    expect(document.getElementById('linkTrackingUtm').getAttribute('aria-pressed')).toBe('true');
+    expect(document.getElementById('linkTrackingMtm').getAttribute('aria-pressed')).toBe('false');
   });
 
   test('generates, stores, and renders a tracked link', () => {
@@ -121,9 +209,28 @@ describe('Generate tool', () => {
     expect(generator.state.items[0].type).toBe('Link');
     expect(generator.state.items[0].value).toContain('mtm_medium=EMAIL');
     expect(JSON.parse(window.localStorage.getItem(generator.storageKey))).toHaveLength(1);
-    expect(document.getElementById('generatedItemsList').textContent).toContain('https://norican.com/contact/');
+    expect(document.getElementById('generatedItemsList').textContent).toContain('norican.com/contact');
     expect(document.querySelector('[data-saved-result]').classList.contains('truncate')).toBe(true);
     expect(document.querySelector('[data-saved-result]').getAttribute('title')).toBe(generator.state.items[0].value);
+  });
+
+  test('generates and renders highlight link history metadata', () => {
+    const generator = setupGenerator();
+    generator.setActiveType('Link');
+    document.getElementById('linkCampaign').value = 'upgrade1';
+    document.getElementById('linkContent').value = 'en';
+    document.getElementById('linkTerm').value = 'cta';
+    document.getElementById('linkCrmCampaign').value = 'no-26-upgrade';
+    document.getElementById('linkHighlightText').value = 'Contact our sales team';
+
+    document.getElementById('linkGeneratorForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    expect(generator.state.items).toHaveLength(1);
+    expect(generator.state.items[0].value).toContain('#:~:text=Contact%20our%20sales%20team');
+    expect(generator.state.items[0].fields.usedHighlightLink).toBe(true);
+    expect(generator.state.items[0].fields.highlightText).toBe('Contact our sales team');
+    expect(document.getElementById('generatedItemsList').textContent).toContain('HIGHLIGHT');
+    expect(document.querySelector('[data-saved-highlight]').textContent).toBe('Contact our sales team');
   });
 
   test('enables Generate, Validate, and Copy only when every link field is complete', () => {
@@ -145,12 +252,56 @@ describe('Generate tool', () => {
     expect(validateButton.disabled).toBe(false);
     expect(copyButton.disabled).toBe(false);
 
-    document.getElementById('linkSubUrl').value = '';
+    document.getElementById('linkHighlightText').value = 'Contact our sales team';
+    form.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(document.getElementById('linkPreview').textContent).toContain('#:~:text=Contact%20our%20sales%20team');
+
+    document.getElementById('linkBaseUrl').value = '';
     form.dispatchEvent(new Event('input', { bubbles: true }));
     expect(button.disabled).toBe(true);
     expect(validateButton.disabled).toBe(true);
     expect(copyButton.disabled).toBe(true);
     expect(document.getElementById('linkFormError').textContent).toBe('');
+  });
+
+  test('keeps link actions disabled when the editable URL is invalid', () => {
+    setupGenerator();
+    const button = document.getElementById('generateItemButton');
+    const validateButton = document.getElementById('validateGeneratorPreviewButton');
+    const copyButton = document.getElementById('copyGeneratorPreviewButton');
+    const form = document.getElementById('linkGeneratorForm');
+
+    ['linkCampaign', 'linkContent', 'linkTerm', 'linkCrmCampaign'].forEach(id => {
+      document.getElementById(id).value = 'complete';
+    });
+    document.getElementById('linkBaseUrl').value = 'not a url';
+    form.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(document.getElementById('linkPreview').textContent).toBe('Link preview');
+    expect(button.disabled).toBe(true);
+    expect(validateButton.disabled).toBe(true);
+    expect(copyButton.disabled).toBe(true);
+  });
+
+  test('copies the highlighted link from the normal preview copy button', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    setupGenerator();
+
+    ['linkCampaign', 'linkContent', 'linkTerm', 'linkCrmCampaign'].forEach(id => {
+      document.getElementById(id).value = 'complete';
+    });
+    document.getElementById('linkHighlightText').value = 'Contact our sales team';
+    document.getElementById('linkGeneratorForm').dispatchEvent(new Event('input', { bubbles: true }));
+
+    document.getElementById('copyGeneratorPreviewButton').click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('#:~:text=Contact%20our%20sales%20team'));
   });
 
   test('updates action availability for Campaign and Survey', () => {
@@ -239,7 +390,7 @@ describe('Generate tool', () => {
     expect(generator.state.items[0].value).toContain('&lang=en-us&ctx=');
     expect(generator.state.items[0].value).toContain('%22source%22%3A%22CRM%22');
     expect(JSON.parse(window.localStorage.getItem(generator.storageKey))).toHaveLength(1);
-    expect(document.getElementById('generatedItemsList').textContent).toContain('https://emea.dcv.ms/GVMHka0Ltj');
+    expect(document.getElementById('generatedItemsList').textContent).toContain('emea.dcv.ms/GVMHka0Ltj');
   });
 
   test('generates, stores, and renders a campaign', () => {
@@ -286,9 +437,9 @@ describe('Generate tool', () => {
     const generator = setupGenerator();
     expect(generator.state.items).toHaveLength(3);
     expect(document.getElementById('generatedItemsList').textContent).toContain('WB-26-NAM-Service-SP3-EN');
-    expect(document.getElementById('generatedItemsList').textContent).toContain('https://norican.com/contact/');
-    expect(document.getElementById('generatedItemsList').textContent).toContain('https://emea.dcv.ms/GVMHka0Ltj');
-    expect(document.getElementById('generatedItemsList').classList.contains('max-h-[318px]')).toBe(true);
+    expect(document.getElementById('generatedItemsList').textContent).toContain('norican.com/contact');
+    expect(document.getElementById('generatedItemsList').textContent).toContain('emea.dcv.ms/GVMHka0Ltj');
+    expect(document.getElementById('generatedItemsList').textContent).toContain('Load more');
     expect(document.querySelector('[data-saved-type="Link"] [data-saved-title]').classList.contains('text-sky-300')).toBe(true);
     expect(document.querySelector('[data-saved-type="Campaign"] [data-saved-title]').classList.contains('text-emerald-300')).toBe(true);
     expect(document.querySelector('[data-saved-type="Survey"] [data-saved-title]').classList.contains('text-purple-300')).toBe(true);
