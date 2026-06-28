@@ -10,23 +10,6 @@
       { value: "de", label: "German" },
       { value: "zh-cn", label: "Chinese" }
     ],
-    surveyLobs: [
-      { value: "Norican", label: "Norican" },
-      { value: "Wheelabrator", label: "Wheelabrator" },
-      { value: "DISA", label: "DISA" },
-      { value: "DISA-India", label: "DISA India" },
-      { value: "Simpson", label: "Simpson" },
-      { value: "StrikoWestofen", label: "StrikoWestofen" },
-      { value: "Monitizer", label: "Monitizer" }
-    ],
-    businesses: [
-      { value: "NO", label: "Norican" },
-      { value: "MO", label: "Monitizer" },
-      { value: "DI", label: "DISA" },
-      { value: "SW", label: "StrikoWestofen" },
-      { value: "SI", label: "Simpson" },
-      { value: "WB", label: "Wheelabrator" }
-    ],
     years: [
       { value: "26", label: "2026" },
       { value: "25", label: "2025" }
@@ -503,9 +486,9 @@
     if (els.formatDescription) {
       els.formatDescription.textContent = isSurvey
         ? "Editable survey URL followed by language and an encoded CRM context object."
-        : isLink
-          ? ""
-          : "Business, year, optional region, descriptor, sales play, and optional language joined with hyphens.";
+          : isLink
+            ? ""
+            : "Campaign name, year, optional region, descriptor, sales play, and optional language joined with hyphens.";
       updateLinkFormatDescription();
     }
     clearError();
@@ -693,8 +676,6 @@
   function init() {
     if (!els.campaignForm || !els.linkForm || !els.surveyForm) return;
     fillSelect(els.surveyLanguage, options.surveyLanguages);
-    fillSelect(els.surveyLob, options.surveyLobs);
-    fillSelect(els.business, options.businesses);
     fillSelect(els.year, options.years);
     fillSelect(els.region, options.regions);
     fillSelect(els.language, options.languages);

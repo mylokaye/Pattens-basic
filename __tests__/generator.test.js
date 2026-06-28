@@ -16,7 +16,7 @@ function setupGenerator() {
     <form id="surveyGeneratorForm" class="hidden">
       <input id="surveyBaseUrl" value="https://emea.dcv.ms/GVMHka0Ltj">
       <select id="surveyLanguage"></select>
-      <select id="surveyLob"></select>
+      <input id="surveyLob" value="Norican">
       <input id="surveyJourney" value="NO-Inquiry">
       <input id="surveyCampaign" value="NO-Inquiry">
       <input id="surveyContent" value="NO-Inquiry-EN">
@@ -39,7 +39,7 @@ function setupGenerator() {
       <p id="linkFormError" class="hidden"></p>
     </form>
     <form id="campaignGeneratorForm">
-      <select id="campaignBusiness"></select>
+      <input id="campaignBusiness" value="NO">
       <select id="campaignYear"></select>
       <select id="campaignRegion"></select>
       <select id="campaignLanguage"></select>
